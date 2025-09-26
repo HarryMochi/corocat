@@ -7,28 +7,54 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle2, ChevronLeft, ChevronRight, RefreshCw, XCircle, Loader2 } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, RefreshCw, XCircle, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Progress } from "./ui/progress";
 
 interface StepQuizProps {
-  quizSet: QuizSet;
+  quizSet: QuizSet | undefined;
   onQuizUpdate: (newQuizData: QuizSet) => void;
+  onGenerateQuiz: () => Promise<void>;
 }
 
-export function StepQuiz({ quizSet, onQuizUpdate }: StepQuizProps) {
+export function StepQuiz({ quizSet, onQuizUpdate, onGenerateQuiz }: StepQuizProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [showResults, setShowResults] = useState(quizSet.score !== null);
+  const [showResults, setShowResults] = useState(quizSet?.score !== null && quizSet?.score !== undefined);
   const [localQuestions, setLocalQuestions] = useState<Quiz[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     // Deep copy to avoid direct mutation of props
-    setLocalQuestions(JSON.parse(JSON.stringify(quizSet.questions)));
-    setShowResults(quizSet.score !== null);
+    setLocalQuestions(quizSet ? JSON.parse(JSON.stringify(quizSet.questions)) : []);
+    setShowResults(quizSet?.score !== null && quizSet?.score !== undefined);
     setCurrentQuestionIndex(0);
   }, [quizSet]);
+  
+  const handleGenerateClick = async () => {
+      setIsGenerating(true);
+      try {
+          await onGenerateQuiz();
+      } catch (e) {
+          // Error is handled by parent, just stop loading state
+      } finally {
+          setIsGenerating(false);
+      }
+  }
 
-  if (!localQuestions || localQuestions.length === 0) {
+  if (!quizSet) {
+    return (
+        <div className="flex flex-col items-center justify-center p-6 text-center space-y-4 min-h-[300px]">
+            <h3 className="text-2xl font-bold font-headline">Mini Check</h3>
+            <p className="text-muted-foreground">Test your knowledge of this step.</p>
+            <Button onClick={handleGenerateClick} disabled={isGenerating}>
+                {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                Generate Quiz
+            </Button>
+        </div>
+    )
+  }
+
+  if (localQuestions.length === 0) {
     return (
       <div className="text-center text-muted-foreground p-6">
         There is no quiz for this step.

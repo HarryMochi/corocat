@@ -5,6 +5,7 @@ import { generateFullCourse, type GenerateFullCourseInput, type GenerateFullCour
 import { askStepQuestion, type AskStepQuestionInput, type AskStepQuestionOutput } from '@/ai/flows/ask-step-question';
 import { assistWithNotes, type AssistWithNotesInput, type AssistWithNotesOutput } from '@/ai/flows/assist-with-notes';
 import { validateMarketplaceUpload, type ValidateMarketplaceUploadInput, type ValidateMarketplaceUploadOutput } from '@/ai/flows/validate-marketplace-upload';
+import { generateStepQuiz, type GenerateStepQuizInput, type GenerateStepQuizOutput } from '@/ai/flows/generate-step-quiz';
 
 
 export async function generateCourseAction(input: GenerateFullCourseInput): Promise<GenerateFullCourseOutput> {
@@ -60,3 +61,14 @@ export async function validateMarketplaceUploadAction(input: ValidateMarketplace
     }
 }
 
+export async function generateQuizAction(input: GenerateStepQuizInput): Promise<GenerateStepQuizOutput> {
+    try {
+        return await generateStepQuiz(input);
+    } catch (error) {
+        console.error("Error in generateQuizAction:", error);
+        if (error instanceof Error) {
+            throw new Error(error.message);
+        }
+        throw new Error("An unknown error occurred while generating the quiz.");
+    }
+}

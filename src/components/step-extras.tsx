@@ -3,7 +3,7 @@
 
 import type { Step } from "@/lib/types";
 import { Button } from "./ui/button";
-import { Bot, Lightbulb, Link as LinkIcon } from "lucide-react";
+import { Lightbulb, Link as LinkIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import Link from "next/link";
 import { Separator } from "./ui/separator";
@@ -15,15 +15,14 @@ interface StepExtrasProps {
 
 export function StepExtras({ step, onAskAiClick }: StepExtrasProps) {
   const hasExtras = step.funFact || (step.externalLinks && step.externalLinks.length > 0);
+  
+  if (!hasExtras) {
+    return null;
+  }
 
   return (
     <div className="space-y-6">
-      <Button onClick={onAskAiClick} variant="outline" className="w-full">
-        <Bot className="mr-2 h-4 w-4" />
-        Ask AI a Question about this Step
-      </Button>
-
-      {hasExtras && <Separator />}
+      <Separator />
 
       {step.funFact && (
         <Card className="bg-accent/10 border-accent/20 border-dashed">

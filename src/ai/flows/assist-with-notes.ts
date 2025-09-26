@@ -2,13 +2,14 @@
 /**
  * @fileOverview Assists users with their notes for a course.
  *
- * - assistWithNotes - A function that helps with note-taking.
+ * - assistWithNotes - a function that helps with note-taking.
  * - AssistWithNotesInput - The input type for the assistWithNotes function.
  * - AssistWithNotesOutput - The return type for the assistWithNotes function.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { googleAI } from '@genkit-ai/googleai';
 
 const AssistWithNotesInputSchema = z.object({
   topic: z.string().describe('The topic of the course.'),
@@ -52,7 +53,7 @@ const assistWithNotesFlow = ai.defineFlow(
     outputSchema: AssistWithNotesOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
+    const {output} = await prompt(input, { model: googleAI.model('gemini-2.5-flash') });
     return output!;
   }
 );

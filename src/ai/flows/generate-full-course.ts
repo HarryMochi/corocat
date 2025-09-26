@@ -20,16 +20,6 @@ const GenerateFullCourseInputSchema = z.object({
 });
 export type GenerateFullCourseInput = z.infer<typeof GenerateFullCourseInputSchema>;
 
-const MultipleChoiceQuizSchema = z.object({
-    type: z.enum(['multipleChoice']).describe("The type of quiz question."),
-    question: z.string().describe('The quiz question.'),
-    options: z.array(z.string()).describe('An array of possible answers. For true/false questions, this should be ["True", "False"].'),
-    correctAnswerIndex: z.number().describe('The index of the correct answer in the options array.'),
-    explanation: z.string().describe('A brief explanation of why the answer is correct.'),
-});
-
-const QuizSchema = MultipleChoiceQuizSchema;
-
 const ExternalLinkSchema = z.object({
     title: z.string().describe('The title of the external website or resource.'),
     url: z.string().url().describe('The full URL to the external resource.'),
@@ -49,8 +39,7 @@ const GenerateFullCourseOutputSchema = z.object({
     contentBlocks: z.array(ContentBlockSchema).describe('An array of different content blocks that make up the step. You must generate a variety of blocks to make the content engaging.'),
     funFact: z.string().describe("A surprising or interesting fun fact related to the step's topic.").optional(),
     externalLinks: z.array(ExternalLinkSchema).describe('An array of 2-3 high-quality external links for further reading.').optional(),
-    quiz: z.array(QuizSchema).describe('An array of 6 quiz questions to test understanding. Include exactly 4 multiple-choice questions (with 3-4 options each) and 2 true/false questions.').optional(),
-  })).describe('A structured course with the specified number of steps, including all content and a quiz for each step.'),
+  })).describe('A structured course with the specified number of steps, including all content.'),
 });
 export type GenerateFullCourseOutput = z.infer<typeof GenerateFullCourseOutputSchema>;
 
@@ -83,6 +72,9 @@ const prompt = ai.definePrompt({
     - For 'keyTerm' blocks, use the format "Term: Definition".
     - All content within blocks MUST be well-organized. Use Markdown to structure the text with headings (#, ##), subheadings, bullet points (*), and bold text (**text**) to create a clear hierarchy and improve readability.
 
+    The fourth MOST IMPORTANT requirement is to manage content length.
+    - The TOTAL content for a single step (across all its content blocks) should be between 300 and 500 words. This is crucial for keeping the course generation fast and the content digestible. Do not write excessively long steps.
+
     For each and every step, you must generate:
     1.  A step number.
     2.  A clear and concise title.
@@ -91,7 +83,8 @@ const prompt = ai.definePrompt({
     5.  A 'contentBlocks' array with detailed, well-structured content using a variety of block types. DO NOT use emojis.
     6.  A surprising or interesting "Fun Fact" related to the step's content.
     7.  An array of 2-3 high-quality, real, and relevant external links for further reading.
-    8.  An array of exactly 6 quiz questions for the "Mini Check". This array MUST include 4 'multipleChoice' questions (with 3-4 options) and 2 true/false questions. For true/false questions, the options array must be ["True", "False"]. Each question must be complete and adhere to its schema. If you cannot generate a complete quiz array, omit the quiz property entirely for that step.
+    
+    DO NOT generate a quiz. The quiz will be generated later.
 
     Your goal is to take a user from their current knowledge level to their desired level of mastery for the given topic.
 

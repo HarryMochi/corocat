@@ -1,11 +1,11 @@
 
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import type { Course, Step, QuizSet } from "@/lib/types";
 import { Button } from "./ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
-import { X, Bot, Notebook, BookOpen, Loader2, Send, User, CheckCircle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "./ui/dialog";
+import { X, Bot, Notebook, BookOpen, Loader2, Send, User, CheckCircle, Puzzle } from "lucide-react";
 import { StepContent } from "./step-content";
 import { StepExtras } from "./step-extras";
 import { StepQuiz } from "./step-quiz";
@@ -18,6 +18,7 @@ import type { AssistWithNotesOutput } from "@/ai/flows/assist-with-notes";
 import NotesDisplay from "./notes-display";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "./ui/separator";
+import type { GenerateStepQuizOutput } from "@/ai/flows/generate-step-quiz";
 
 interface AiChatProps {
     course: Course;
@@ -170,13 +171,13 @@ interface StepWorkspaceProps {
     onAskQuestion: (input: AskStepQuestionInput) => Promise<AskStepQuestionOutput>;
     onUpdateNotes: (notes: string) => void;
     onAssistWithNotes: (course: Course, notes: string, request: string) => Promise<AssistWithNotesOutput>;
-    onEvaluateQuestion: (input: any) => Promise<any>;
+    onGenerateQuiz: (course: Course, step: Step) => Promise<GenerateStepQuizOutput>;
 }
 
 
 export function StepWorkspace({ 
     course, 
-    step, 
+    step: initialStep, 
     chatHistory, 
     setChatHistory, 
     onClose, 
@@ -184,25 +185,37 @@ export function StepWorkspace({
     onAskQuestion, 
     onUpdateNotes, 
     onAssistWithNotes,
+    onGenerateQuiz,
 }: StepWorkspaceProps) {
   
-    const [isCompleted, setIsCompleted] = useState(step.completed);
+    const [step, setStep] = useState(initialStep);
 
     useEffect(() => {
-        setIsCompleted(step.completed);
-    }, [step.completed]);
+        // When the course data changes (e.g., after a quiz is generated),
+        // find the updated version of the current step from the course prop
+        // and update the local state.
+        const updatedStep = course.steps.find(s => s.stepNumber === initialStep.stepNumber);
+        if (updatedStep) {
+            setStep(updatedStep);
+        }
+    }, [course, initialStep.stepNumber]);
     
     const handleCheckedChange = (checked: boolean) => {
-        setIsCompleted(checked);
+        const newStepState = { ...step, completed: checked };
+        setStep(newStepState);
         onUpdateStep({ completed: checked });
     };
 
     const handleQuizUpdate = (newQuizData: QuizSet) => {
         onUpdateStep({ quiz: newQuizData });
     };
+
+    const handleGenerateQuiz = useCallback(async () => {
+        await onGenerateQuiz(course, step);
+    }, [course, step, onGenerateQuiz]);
     
     const handleFinishStep = () => {
-        if (!isCompleted) {
+        if (!step.completed) {
             handleCheckedChange(true);
         }
         onClose();
@@ -212,23 +225,23 @@ export function StepWorkspace({
     return (
         <Dialog open={true} onOpenChange={(isOpen) => !isOpen && onClose()}>
             <DialogContent hideClose className="max-w-full w-full h-full p-0 gap-0 flex flex-col data-[state=open]:animate-none data-[state=closed]:animate-none !rounded-none">
-                <header className="p-4 border-b flex items-center justify-between shrink-0">
+                <DialogHeader className="p-4 border-b flex-row items-center justify-between shrink-0 space-y-0">
                     <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close Workspace">
                         <X className="h-5 w-5" />
                     </Button>
                     <div className="text-center">
-                        <p className="text-sm text-muted-foreground">Step {step.stepNumber}</p>
-                        <h1 className="font-headline text-xl font-bold">{step.title}</h1>
+                        <DialogDescription>Step {step.stepNumber}</DialogDescription>
+                        <DialogTitle>{step.title}</DialogTitle>
                     </div>
                     <div className="flex items-center space-x-2">
                         <Checkbox
                             id="workspace-completed"
-                            checked={isCompleted}
+                            checked={step.completed}
                             onCheckedChange={handleCheckedChange}
                         />
                         <Label htmlFor="workspace-completed">Mark as complete</Label>
                     </div>
-                </header>
+                </DialogHeader>
                 
                 <div className="flex-1 min-h-0">
                      <Tabs defaultValue="content" className="flex flex-col min-h-0 h-full">
@@ -236,6 +249,7 @@ export function StepWorkspace({
                             <TabsList className="bg-transparent">
                                 <TabsTrigger value="content"><BookOpen className="mr-2 h-4 w-4"/>Content</TabsTrigger>
                                 <TabsTrigger value="notes"><Notebook className="mr-2 h-4 w-4"/>Notes</TabsTrigger>
+                                <TabsTrigger value="quiz"><Puzzle className="mr-2 h-4 w-4"/>Mini Check</TabsTrigger>
                             </TabsList>
                         </div>
 
@@ -243,26 +257,9 @@ export function StepWorkspace({
                             <ScrollArea className="h-full">
                                 <div className="p-6 md:p-8 space-y-8">
                                     <StepContent contentBlocks={step.contentBlocks} />
-                                    <Dialog>
-                                        <DialogTrigger asChild>
-                                            <div className="px-6">
-                                                <StepExtras step={step} onAskAiClick={() => {}} />
-                                            </div>
-                                        </DialogTrigger>
-                                        <DialogContent className="max-w-2xl h-[80vh] flex flex-col p-0 gap-0">
-                                            <DialogHeader className="p-4 border-b">
-                                                <DialogTitle className="flex items-center gap-2"><Bot className="h-5 w-5" /> AI Assistant</DialogTitle>
-                                            </DialogHeader>
-                                            <AiChat 
-                                                course={course} 
-                                                step={step} 
-                                                history={chatHistory}
-                                                setHistory={setChatHistory}
-                                                onAskQuestion={onAskQuestion} 
-                                            />
-                                        </DialogContent>
-                                    </Dialog>
-                                    {step.quiz && <StepQuiz quizSet={step.quiz} onQuizUpdate={handleQuizUpdate} key={step.stepNumber} />}
+                                    <div className="px-6">
+                                        <StepExtras step={step} onAskAiClick={() => {}} />
+                                    </div>
                                     <Separator />
                                     <div className="flex justify-center py-4">
                                         <Button size="lg" onClick={handleFinishStep}>
@@ -282,8 +279,40 @@ export function StepWorkspace({
                                 onAssistWithNotes={onAssistWithNotes}
                             />
                         </TabsContent>
+
+                        <TabsContent value="quiz" className="flex-1 min-h-0">
+                                <ScrollArea className="h-full">
+                                    <div className="p-6 md:p-8">
+                                    <StepQuiz 
+                                        quizSet={step.quiz} 
+                                        onQuizUpdate={handleQuizUpdate}
+                                        onGenerateQuiz={handleGenerateQuiz}
+                                        key={step.stepNumber} 
+                                    />
+                                    </div>
+                                </ScrollArea>
+                        </TabsContent>
                     </Tabs>
                 </div>
+                 <Dialog>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" className="absolute bottom-4 left-4 z-10">
+                            <Bot className="mr-2 h-4 w-4" /> Ask AI
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl h-[80vh] flex flex-col p-0 gap-0">
+                        <DialogHeader className="p-4 border-b">
+                            <DialogTitle className="flex items-center gap-2"><Bot className="h-5 w-5" /> AI Assistant</DialogTitle>
+                        </DialogHeader>
+                        <AiChat 
+                            course={course} 
+                            step={step} 
+                            history={chatHistory}
+                            setHistory={setChatHistory}
+                            onAskQuestion={onAskQuestion} 
+                        />
+                    </DialogContent>
+                </Dialog>
             </DialogContent>
         </Dialog>
     );

@@ -8,6 +8,7 @@ import { StepList } from './step-list';
 import type { AskStepQuestionInput, AskStepQuestionOutput } from '@/ai/flows/ask-step-question';
 import type { AssistWithNotesOutput } from '@/ai/flows/assist-with-notes';
 import { StepWorkspace, type Message } from './step-workspace';
+import type { GenerateStepQuizOutput } from '@/ai/flows/generate-step-quiz';
 
 
 interface CourseDisplayProps {
@@ -18,7 +19,7 @@ interface CourseDisplayProps {
   onAskQuestion: (input: AskStepQuestionInput) => Promise<AskStepQuestionOutput>;
   onUpdateNotes: (courseId: string, notes: string) => void;
   onAssistWithNotes: (course: Course, notes: string, request: string) => Promise<AssistWithNotesOutput>;
-  onEvaluateQuestion: (input: any) => Promise<any>; // Changed to any for now
+  onGenerateQuiz: (course: Course, step: Step) => Promise<GenerateStepQuizOutput>;
 }
 
 export default function CourseDisplay({ 
@@ -29,7 +30,7 @@ export default function CourseDisplay({
     onAskQuestion, 
     onUpdateNotes, 
     onAssistWithNotes, 
-    onEvaluateQuestion 
+    onGenerateQuiz
 }: CourseDisplayProps) {
   const [activeStep, setActiveStep] = useState<Step | null>(null);
 
@@ -75,7 +76,7 @@ export default function CourseDisplay({
           onAskQuestion={onAskQuestion}
           onUpdateNotes={(notes) => onUpdateNotes(course.id, notes)}
           onAssistWithNotes={onAssistWithNotes}
-          onEvaluateQuestion={onEvaluateQuestion}
+          onGenerateQuiz={onGenerateQuiz}
         />
       )}
     </>

@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Course, Step, QuizSet } from '@/lib/types';
 import { getCoursesForUser, addCourse, updateCourse, deleteCourse as deleteCourseFromDb } from '@/lib/firestore';
-import { generateCourseAction, askQuestionAction, assistWithNotesAction } from '../actions';
+import { generateCourseAction, askQuestionAction, assistWithNotesAction, generateQuizAction } from '../actions';
 import { useToast } from "@/hooks/use-toast";
 import HistorySidebar from '@/components/history-sidebar';
 import TopicSelection from '@/components/topic-selection';
@@ -17,6 +17,7 @@ import type { AssistWithNotesOutput } from '@/ai/flows/assist-with-notes';
 import type { GenerateFullCourseInput } from '@/ai/flows/generate-full-course';
 import LearnLayout from '@/components/learn-layout';
 import type { Message } from '@/components/step-workspace';
+import type { GenerateStepQuizOutput } from '@/ai/flows/generate-step-quiz';
 
 
 export type GenerationState = {
@@ -84,14 +85,7 @@ export default function LearnPage() {
         if (step.externalLinks) {
             newStep.externalLinks = step.externalLinks;
         }
-        if (step.quiz && step.quiz.length > 0) {
-            const quizSet: QuizSet = {
-                questions: step.quiz.map(q => ({...q, userAnswer: null, isCorrect: null})),
-                score: null,
-            };
-            newStep.quiz = quizSet;
-        }
-
+        
         return newStep;
       });
 
@@ -147,6 +141,38 @@ export default function LearnPage() {
         toast({ variant: "destructive", title: "Sync Error", description: "Failed to save changes."});
         // Revert UI on failure
         setCourses(prevCourses => prevCourses.map(c => c.id === courseId ? courseToUpdate : c));
+    }
+  };
+
+  const handleGenerateQuiz = async (course: Course, step: Step): Promise<GenerateStepQuizOutput> => {
+    try {
+        const stepContentString = step.contentBlocks?.map(b => `### ${b.type}\n${b.content}`).join('\n\n') || '';
+
+        const result = await generateQuizAction({
+            topic: course.topic,
+            courseOutline: course.outline,
+            stepTitle: step.title,
+            stepContent: stepContentString,
+        });
+
+        if (result.quiz) {
+            const newQuizSet: QuizSet = {
+                questions: result.quiz.map(q => ({...q, userAnswer: null, isCorrect: null})),
+                score: null,
+            };
+            handleUpdateStep(course.id, step.stepNumber, { quiz: newQuizSet });
+        }
+
+        return result;
+
+    } catch (error) {
+        console.error(error);
+        toast({
+            variant: "destructive",
+            title: "Error Generating Quiz",
+            description: "Could not generate a quiz for this step. Please try again.",
+        });
+        throw error;
     }
   };
 
@@ -264,7 +290,7 @@ export default function LearnPage() {
       onAskQuestion={handleAskQuestion}
       onUpdateNotes={handleUpdateNotes}
       onAssistWithNotes={handleAssistWithNotes}
-      onEvaluateQuestion={() => { throw new Error("Not implemented"); }}
+      onGenerateQuiz={handleGenerateQuiz}
     />
   ) : (
     <div className="h-full flex items-center justify-center p-4 md:p-8">
