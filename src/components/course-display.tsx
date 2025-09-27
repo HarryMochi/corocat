@@ -20,6 +20,7 @@ interface CourseDisplayProps {
   onUpdateNotes: (courseId: string, notes: string) => void;
   onAssistWithNotes: (course: Course, notes: string, request: string) => Promise<AssistWithNotesOutput>;
   onGenerateQuiz: (course: Course, step: Step) => Promise<GenerateStepQuizOutput>;
+  onQuizRestart: (courseId: string, stepNumber: number) => void;
 }
 
 export default function CourseDisplay({ 
@@ -30,7 +31,8 @@ export default function CourseDisplay({
     onAskQuestion, 
     onUpdateNotes, 
     onAssistWithNotes, 
-    onGenerateQuiz
+    onGenerateQuiz,
+    onQuizRestart,
 }: CourseDisplayProps) {
   const [activeStep, setActiveStep] = useState<Step | null>(null);
 
@@ -77,6 +79,7 @@ export default function CourseDisplay({
           onUpdateNotes={(notes) => onUpdateNotes(course.id, notes)}
           onAssistWithNotes={onAssistWithNotes}
           onGenerateQuiz={onGenerateQuiz}
+          onQuizRestart={() => onQuizRestart(course.id, activeStep.stepNumber)}
         />
       )}
     </>

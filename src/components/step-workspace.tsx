@@ -172,6 +172,7 @@ interface StepWorkspaceProps {
     onUpdateNotes: (notes: string) => void;
     onAssistWithNotes: (course: Course, notes: string, request: string) => Promise<AssistWithNotesOutput>;
     onGenerateQuiz: (course: Course, step: Step) => Promise<GenerateStepQuizOutput>;
+    onQuizRestart: () => void;
 }
 
 
@@ -186,12 +187,13 @@ export function StepWorkspace({
     onUpdateNotes, 
     onAssistWithNotes,
     onGenerateQuiz,
+    onQuizRestart
 }: StepWorkspaceProps) {
   
     const [step, setStep] = useState(initialStep);
 
     useEffect(() => {
-        // When the course data changes (e.g., after a quiz is generated),
+        // When the course data changes (e.g., after a quiz is generated or restarted),
         // find the updated version of the current step from the course prop
         // and update the local state.
         const updatedStep = course.steps.find(s => s.stepNumber === initialStep.stepNumber);
@@ -287,6 +289,7 @@ export function StepWorkspace({
                                         quizSet={step.quiz} 
                                         onQuizUpdate={handleQuizUpdate}
                                         onGenerateQuiz={handleGenerateQuiz}
+                                        onQuizRestart={onQuizRestart}
                                         key={step.stepNumber} 
                                     />
                                     </div>

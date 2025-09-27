@@ -15,9 +15,10 @@ interface StepQuizProps {
   quizSet: QuizSet | undefined;
   onQuizUpdate: (newQuizData: QuizSet) => void;
   onGenerateQuiz: () => Promise<void>;
+  onQuizRestart: () => void;
 }
 
-export function StepQuiz({ quizSet, onQuizUpdate, onGenerateQuiz }: StepQuizProps) {
+export function StepQuiz({ quizSet, onQuizUpdate, onGenerateQuiz, onQuizRestart }: StepQuizProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [showResults, setShowResults] = useState(quizSet?.score !== null && quizSet?.score !== undefined);
   const [localQuestions, setLocalQuestions] = useState<Quiz[]>([]);
@@ -78,15 +79,13 @@ export function StepQuiz({ quizSet, onQuizUpdate, onGenerateQuiz }: StepQuizProp
   };
   
   const handleTryAgain = () => {
-    setShowResults(false);
-    setCurrentQuestionIndex(0);
-    const resetQuestions = quizSet.questions.map(q => ({...q, userAnswer: null, isCorrect: null}));
-    setLocalQuestions(resetQuestions);
-    onQuizUpdate({ ...quizSet, score: null, questions: resetQuestions });
+    onQuizRestart();
   }
   
   const handleFinish = () => {
-    const updatedQuizSet = { questions: localQuestions, score: 100 }; // Score is not shown but needs to be non-null to indicate completion
+    const correctAnswers = localQuestions.filter(q => q.isCorrect).length;
+    const score = (correctAnswers / localQuestions.length) * 100;
+    const updatedQuizSet = { ...quizSet, questions: localQuestions, score }; 
     onQuizUpdate(updatedQuizSet);
     setShowResults(true);
   };
@@ -94,9 +93,14 @@ export function StepQuiz({ quizSet, onQuizUpdate, onGenerateQuiz }: StepQuizProp
   const progress = ((currentQuestionIndex + 1) / localQuestions.length) * 100;
   
   if (showResults) {
+    const correctAnswers = localQuestions.filter(q => q.isCorrect).length;
+    const totalQuestions = localQuestions.length;
+    const score = (correctAnswers / totalQuestions) * 100;
+
     return (
         <div className="flex flex-col items-center justify-center p-6 text-center space-y-4">
             <h3 className="text-2xl font-bold font-headline">Mini Check Complete!</h3>
+            <p className="text-muted-foreground">You scored {score.toFixed(0)}% ({correctAnswers}/{totalQuestions})</p>
             <Button onClick={handleTryAgain}>
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Try Again

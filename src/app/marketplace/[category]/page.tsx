@@ -174,6 +174,11 @@ export default function MarketplaceCategoryPage() {
         await fetchData(); // Re-fetch data to ensure UI is in sync and avoid duplicates
     };
 
+    const handleSelectCourse = (id: string) => {
+        sessionStorage.setItem('selectedCourseId', id);
+        router.push('/learn');
+    };
+
     if (loading || !isClient || !user || !user.emailVerified) {
         return (
             <div className="flex items-center justify-center h-screen bg-background">
@@ -187,7 +192,7 @@ export default function MarketplaceCategoryPage() {
           user={user}
           courses={userCourses}
           activeCourseId={null}
-          onSelectCourse={(id) => router.push(`/learn`)}
+          onSelectCourse={handleSelectCourse}
           onCreateNew={() => router.push('/learn')}
           onDeleteCourse={handleDeleteCourse}
           onLogout={logout}

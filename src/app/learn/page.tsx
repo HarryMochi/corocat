@@ -49,11 +49,19 @@ export default function LearnPage() {
     if (user && user.emailVerified) {
       const userCourses = await getCoursesForUser(user.uid);
       setCourses(userCourses);
+      return userCourses;
     }
+    return [];
   }, [user]);
 
   useEffect(() => {
-    fetchCourses();
+    fetchCourses().then((fetchedCourses) => {
+      const storedCourseId = sessionStorage.getItem('selectedCourseId');
+      if (storedCourseId && fetchedCourses.some(c => c.id === storedCourseId)) {
+        setActiveCourseId(storedCourseId);
+        sessionStorage.removeItem('selectedCourseId'); // Clean up after use
+      }
+    });
   }, [fetchCourses]);
 
   const activeCourse = useMemo(() => {
@@ -143,6 +151,23 @@ export default function LearnPage() {
         setCourses(prevCourses => prevCourses.map(c => c.id === courseId ? courseToUpdate : c));
     }
   };
+
+  const handleQuizRestart = (courseId: string, stepNumber: number) => {
+    const courseToUpdate = courses.find(c => c.id === courseId);
+    if (!courseToUpdate) return;
+
+    const updatedSteps = courseToUpdate.steps.map(step => {
+        if (step.stepNumber === stepNumber && step.quiz) {
+            const resetQuestions = step.quiz.questions.map(q => ({...q, userAnswer: null, isCorrect: null}));
+            const newQuizSet: QuizSet = { ...step.quiz, score: null, questions: resetQuestions };
+            return { ...step, quiz: newQuizSet };
+        }
+        return step;
+    });
+
+    const updatedCourse = { ...courseToUpdate, steps: updatedSteps };
+    setCourses(prevCourses => prevCourses.map(c => c.id === courseId ? updatedCourse : c));
+  }
 
   const handleGenerateQuiz = async (course: Course, step: Step): Promise<GenerateStepQuizOutput> => {
     try {
@@ -291,6 +316,7 @@ export default function LearnPage() {
       onUpdateNotes={handleUpdateNotes}
       onAssistWithNotes={handleAssistWithNotes}
       onGenerateQuiz={handleGenerateQuiz}
+      onQuizRestart={handleQuizRestart}
     />
   ) : (
     <div className="h-full flex items-center justify-center p-4 md:p-8">

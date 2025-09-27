@@ -64,6 +64,11 @@ export default function MarketplacePage() {
             setCourses(originalCourses);
         }
     };
+    
+    const handleSelectCourse = (id: string) => {
+        sessionStorage.setItem('selectedCourseId', id);
+        router.push('/learn');
+    };
 
     if (loading || !isClient || !user || !user.emailVerified) {
         return (
@@ -78,7 +83,7 @@ export default function MarketplacePage() {
           user={user}
           courses={courses}
           activeCourseId={null} // No active course on this page
-          onSelectCourse={(id) => router.push(`/learn`)}
+          onSelectCourse={handleSelectCourse}
           onCreateNew={() => router.push('/learn')}
           onDeleteCourse={handleDeleteCourse}
           onLogout={logout}
