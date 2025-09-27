@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
-import { getUserData, getCoursesForUser, deleteCourse } from '@/lib/firestore';
+import { getPublicProfileData, getCoursesForUser, deleteCourse } from '@/lib/firestore';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import LearnLayout from '@/components/learn-layout';
 import HistorySidebar from '@/components/history-sidebar';
@@ -19,7 +19,9 @@ import Link from 'next/link';
 interface UserProfile {
     displayName: string;
     creationTime: string;
-    courses: Course[];
+    coursesCreated: number;
+    coursesCompleted: number;
+    coursesPublished: number;
 }
 
 const ProfileBadge = ({ badge, value }: { badge: ReturnType<typeof getBadgeForCoursesCreated>, value: number }) => (
@@ -47,7 +49,8 @@ export default function ProfilePage() {
         if (!userId) return;
         setPageLoading(true);
         try {
-            const userData = await getUserData(userId);
+            // Use the new public data fetching function
+            const userData = await getPublicProfileData(userId);
             setProfile(userData);
         } catch (error) {
             console.error("Error fetching profile data:", error);
@@ -78,8 +81,8 @@ export default function ProfilePage() {
         setSidebarCourses(prev => prev.filter(c => c.id !== courseId));
         try {
             await deleteCourse(courseId);
-             // If the deleted course was part of the viewed profile, refetch profile data
-            if(profile?.courses.some(c => c.id === courseId)) {
+             // If a deleted course might have been public, refetch profile data
+            if (profile) {
                 fetchProfileData();
             }
         } catch (error) {
@@ -121,14 +124,12 @@ export default function ProfilePage() {
          return (
             <LearnLayout
                 sidebar={sidebar}
-                mainContent={<div className="flex items-center justify-center h-full">User not found.</div>}
+                mainContent={<div className="flex items-center justify-center h-full">User not found or has no public activity.</div>}
             />
         );
     }
 
-    const coursesCreated = profile.courses.length;
-    const coursesCompleted = profile.courses.filter(c => c.steps.length > 0 && c.steps.every(s => s.completed)).length;
-    const coursesPublished = profile.courses.filter(c => c.isPublic).length;
+    const { coursesCreated, coursesCompleted, coursesPublished } = profile;
 
     const createdBadge = getBadgeForCoursesCreated(coursesCreated);
     const completedBadge = getBadgeForCoursesCompleted(coursesCompleted);
@@ -165,6 +166,7 @@ export default function ProfilePage() {
                        <ProfileBadge badge={publishedBadge} value={coursesPublished} />
                     </CardContent>
                 </Card>
+                <p className="text-xs text-muted-foreground text-center max-w-sm">Note: Only statistics from publicly shared courses are displayed on this profile.</p>
             </div>
         </div>
     );
@@ -176,4 +178,3 @@ export default function ProfilePage() {
         />
     );
 }
-

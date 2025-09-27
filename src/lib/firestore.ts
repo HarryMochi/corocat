@@ -43,7 +43,7 @@ export async function addCourse(courseData: CourseData): Promise<string> {
 
 // Read
 export async function getCoursesForUser(userId: string): Promise<Course[]> {
-  const refPath = `users/${userId}/courses`;
+  const refPath = `courses`; // Simplified path for error message
   try {
     const q = query(coursesCollection, where('userId', '==', userId), orderBy('createdAt', 'desc'));
     const querySnapshot = await getDocs(q);
@@ -54,15 +54,12 @@ export async function getCoursesForUser(userId: string): Promise<Course[]> {
   }
 }
 
+
 // Get user data for profile page
 export async function getUserData(userId: string) {
     const courses = await getCoursesForUser(userId);
-    // This is a bit of a hack, we're finding the user info from one of their courses
-    // In a real app, you might have a separate 'users' collection
     const userName = courses[0]?.userName;
     
-    // We can't get user creation date from client-side Firestore queries directly.
-    // So we'll find the oldest course and use its creation date as an approximation.
     const creationTime = courses.length > 0 
         ? courses.reduce((oldest, current) => 
             new Date(current.createdAt) < new Date(oldest.createdAt) ? current : oldest
@@ -77,6 +74,47 @@ export async function getUserData(userId: string) {
         courses
     };
 }
+
+// Get PUBLIC user data for profile page from marketplace courses
+export async function getPublicProfileData(userId: string) {
+    const refPath = `marketplaceCourses`;
+    let userName = "Anonymous";
+    let creationTime = new Date().toISOString();
+
+    try {
+        const q = query(marketplaceCollection, where('userId', '==', userId));
+        const querySnapshot = await getDocs(q);
+        const publishedCourses = querySnapshot.docs.map(doc => ({ marketplaceId: doc.id, ...doc.data() } as MarketplaceCourse));
+
+        if (publishedCourses.length > 0) {
+            userName = publishedCourses[0].userName || "Anonymous";
+            // Approximate creation time from the oldest published course
+            creationTime = publishedCourses.reduce((oldest, current) => 
+                new Date(current.createdAt) < new Date(oldest.createdAt) ? current : oldest
+            ).createdAt;
+        }
+
+        const coursesCompleted = publishedCourses.filter(c => c.steps.length > 0 && c.steps.every(s => s.completed)).length;
+        
+        // Note: We can only count PUBLISHED courses here. The total created courses is private.
+        // For the profile page, this is an acceptable trade-off to avoid permission errors.
+        const coursesCreated = publishedCourses.length;
+        const coursesPublished = publishedCourses.length;
+
+        return {
+            displayName: userName,
+            creationTime,
+            coursesCreated,
+            coursesCompleted,
+            coursesPublished
+        };
+
+    } catch (error) {
+        await handleFirestoreError(error, refPath, 'list');
+        throw error;
+    }
+}
+
 
 // Update
 export async function updateCourse(courseId: string, updates: Partial<CourseData>): Promise<void> {
