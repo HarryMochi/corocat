@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     siteName: 'Corocat',
     images: [
       {
-        url: 'https://corocat.me/og-image.png', // It's a good practice to create a social sharing image
+        url: 'https://corocat.me/cat.png', // It's a good practice to create a social sharing image
         width: 1200,
         height: 630,
       },
@@ -33,11 +33,11 @@ export const metadata: Metadata = {
     locale: 'en_US',
     type: 'website',
   },
-  twitter: {
+   twitter: {
     card: 'summary_large_image',
     title: 'Corocat: Your AI Guide to Learning Any Subject',
     description: 'Corocat uses AI to create personalized learning courses on any topic. Go from beginner to expert with a structured, easy-to-follow plan.',
-    images: ['https://corocat.me/og-image.png'],
+    images: ['https://corocat.me/cat.png'],
   },
 };
 
