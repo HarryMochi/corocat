@@ -2,14 +2,18 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/logo';
-import { BookOpenCheck, Zap, Bot, ArrowRight } from 'lucide-react';
+import { BookOpenCheck, Zap, Bot, ArrowRight, Star } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import MainLayout from '@/components/main-layout';
-import TypingEffect from '@/components/typing-effect';
 import { Decorations } from '@/components/decorations';
 import { useState, useEffect } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { cn } from '@/lib/utils';
 
 export default function LandingPage() {
   const { user, loading } = useAuth();
@@ -23,6 +27,32 @@ export default function LandingPage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const testimonials = [
+    {
+      name: 'Sarah L.',
+      role: 'Lifelong Learner',
+      avatar: 'SL',
+      quote: "I've always wanted to understand quantum physics, but never knew where to start. Corocat created a path that was challenging but not overwhelming. The AI assistant was surprisingly helpful for complex questions!",
+    },
+    {
+      name: 'Michael B.',
+      role: 'Bootcamp Grad',
+      avatar: 'MB',
+      quote: "This is the perfect tool for bridging the gap between theory and practice. I used it to create a deep-dive course on 'Advanced CSS Grid' and it filled in so many knowledge holes I didn't even know I had.",
+    },
+    {
+      name: 'Anita P.',
+      role: 'Hobbyist Developer',
+      avatar: 'AP',
+      quote: "As someone who codes for fun, I love that I can just type in 'Learn Rust for WebAssembly' and get a structured, weekend-sized project plan. It keeps my learning focused and I actually finish what I start.",
+    },
+     {
+      name: 'David R.',
+      role: 'Product Manager',
+      avatar: 'DR',
+      quote: "I need to get up to speed on new technologies fast. Corocat lets me generate a 'Quick Overview' on topics like AI vector databases. It's like having a personal tutor to give me the executive summary.",
+    },
+  ];
 
   return (
     <MainLayout>
@@ -57,13 +87,12 @@ export default function LandingPage() {
               <div className="animate-fade-in-up">
                 <div className="min-h-[144px] md:min-h-[192px] flex items-center justify-center">
                     <h1 className="font-headline text-4xl md:text-6xl font-bold">
-  Learn Any Subject with<br />
-  <span className="text-amber-600">Excitement</span>
-</h1>
+                        Master any Subject with <br /><span className="text-primary">Excitement</span>
+                    </h1>
                 </div>
                 <div className="mb-8">
                     <p className="text-lg md:text-xl text-muted-foreground max-w-3xl">
-                    Corocat uses AI to create purr-fectly personalized learning courses on any topic. Go from beginner to expert with a structured, easy-to-follow plan.
+                    Corocat uses AI to create perfectly personalized learning courses on any topic. Go from beginner to expert with a structured, easy-to-follow plan.
                     </p>
                 </div>
                 <div className="flex gap-4 justify-center">
@@ -74,6 +103,25 @@ export default function LandingPage() {
                     </Link>
                   </Button>
                 </div>
+              </div>
+            </section>
+
+             <section className="relative z-10 py-16 sm:py-24">
+              <div className="screenshot-container">
+                  <div className={cn(
+                      "screenshot-image",
+                      "relative rounded-xl shadow-2xl overflow-hidden w-[90%] max-w-3xl mx-auto"
+                  )}>
+                     <Image
+  src="/Landing-screenshot.png"
+  width={1200}
+  height={780}
+  alt="Screenshot of the Corocat application interface"
+  className="w-full h-auto border-2 border-orange-200"
+  data-ai-hint="dashboard analytics"
+  priority
+/>
+                  </div>
               </div>
             </section>
 
@@ -111,6 +159,52 @@ export default function LandingPage() {
                 </div>
               </div>
             </section>
+            
+            <section className="py-20 relative z-10">
+              <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">Loved by Learners Worldwide</h2>
+                <Carousel 
+                  opts={{
+                    align: "start",
+                    loop: true,
+                  }}
+                  className="w-full max-w-4xl mx-auto"
+                >
+                  <CarouselContent>
+                    {testimonials.map((testimonial, index) => (
+                      <CarouselItem key={index} className="md:basis-1/2 lg:basis-1/3">
+                        <div className="p-1">
+                          <Card className="h-full">
+                            <CardContent className="p-6 flex flex-col items-start justify-between h-full">
+                              <div className="flex items-center gap-1 mb-4">
+                                {[...Array(5)].map((_, i) => (
+                                  <Star key={i} className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                                ))}
+                              </div>
+                              <blockquote className="text-foreground/80 flex-grow">
+                                "{testimonial.quote}"
+                              </blockquote>
+                              <div className="flex items-center gap-3 mt-6 pt-6 border-t w-full">
+                                <Avatar className="h-10 w-10">
+                                  <AvatarFallback>{testimonial.avatar}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <p className="font-semibold">{testimonial.name}</p>
+                                  <p className="text-sm text-muted-foreground">{testimonial.role}</p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  <CarouselPrevious />
+                  <CarouselNext />
+                </Carousel>
+              </div>
+            </section>
+
         </main>
 
         <footer className="bg-footer-background text-foreground relative z-10">
@@ -148,3 +242,9 @@ export default function LandingPage() {
     </MainLayout>
   );
 }
+
+    
+
+    
+
+    

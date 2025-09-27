@@ -1,37 +1,22 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/use-auth';
-import { useRouter, useParams } from 'next/navigation';
-import { Loader2, ArrowLeft, Search } from 'lucide-react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 import LearnLayout from '@/components/learn-layout';
 import HistorySidebar from '@/components/history-sidebar';
-import { getCoursesForUser, getMarketplaceCourses, deleteCourse, addCourseToMarketplace, toggleLikeOnMarketplaceCourse, addCourseFromMarketplace } from '@/lib/firestore';
-import type { Course, MarketplaceCourse } from '@/lib/types';
-import { marketplaceCategories } from '@/components/marketplace/marketplace-category-grid';
-import { Button } from '@/components/ui/button';
-import { CourseUploadDialog } from '@/components/marketplace/course-upload-dialog';
-import { MarketplaceCourseCard } from '@/components/marketplace/marketplace-course-card';
-import { useToast } from '@/hooks/use-toast';
-import { validateMarketplaceUploadAction } from '@/app/actions';
-import { Input } from '@/components/ui/input';
+import { getCoursesForUser, deleteCourse, getAllMarketplaceCourses } from '@/lib/firestore';
+import type { Course } from '@/lib/types';
+import MarketplaceCategoryGrid, { marketplaceCategories } from '@/components/marketplace/marketplace-category-grid';
 
-export default function MarketplaceCategoryPage() {
+export default function MarketplacePage() {
     const { user, loading, logout } = useAuth();
     const router = useRouter();
-    const params = useParams();
-    const { toast } = useToast();
-    const category = typeof params.category === 'string' ? decodeURIComponent(params.category) : '';
-
-    const [userCourses, setUserCourses] = useState<Course[]>([]);
-    const [marketplaceCourses, setMarketplaceCourses] = useState<MarketplaceCourse[]>([]);
-    const [pageLoading, setPageLoading] = useState(true);
+    const [courses, setCourses] = useState<Course[]>([]);
     const [isClient, setIsClient] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
-
-    const categoryInfo = marketplaceCategories.find(c => c.id === category);
+    const [marketplaceCourseCounts, setMarketplaceCourseCounts] = useState<Record<string, number>>({});
 
     useEffect(() => {
         setIsClient(true);
@@ -45,135 +30,41 @@ export default function MarketplaceCategoryPage() {
     }, [user, loading, router]);
 
     const fetchData = useCallback(async () => {
-        if (!user || !category) return;
-        setPageLoading(true);
-        try {
-            const [userCoursesData, marketplaceCoursesData] = await Promise.all([
+        if (user) {
+            const [userCourses, allMarketplaceCourses] = await Promise.all([
                 getCoursesForUser(user.uid),
-                getMarketplaceCourses(category),
+                getAllMarketplaceCourses()
             ]);
-            setUserCourses(userCoursesData);
-            setMarketplaceCourses(marketplaceCoursesData);
-        } catch (error) {
-            console.error("Error fetching page data:", error);
-            toast({
-                variant: 'destructive',
-                title: "Error loading page",
-                description: "Could not fetch marketplace data. Please try again."
-            })
-        } finally {
-            setPageLoading(false);
+            setCourses(userCourses);
+            
+            const counts = allMarketplaceCourses.reduce((acc, course) => {
+                if (course.category) {
+                    acc[course.category] = (acc[course.category] || 0) + 1;
+                }
+                return acc;
+            }, {} as Record<string, number>);
+            setMarketplaceCourseCounts(counts);
         }
-    }, [user, category, toast]);
+    }, [user]);
 
     useEffect(() => {
-        if(user) {
-            fetchData();
-        }
-    }, [user, fetchData]);
-
-    const filteredAndSortedCourses = useMemo(() => {
-        const filtered = marketplaceCourses.filter(course => {
-            const query = searchQuery.toLowerCase();
-            const topicMatch = course.topic.toLowerCase().includes(query);
-            const userMatch = course.userName?.toLowerCase().includes(query) ?? false;
-            const description = JSON.parse(course.outline).map((o: any) => o.description).join(' ');
-            const descriptionMatch = description.toLowerCase().includes(query);
-            return topicMatch || userMatch || descriptionMatch;
-        });
-
-        return filtered.sort((a, b) => (b.likes || 0) - (a.likes || 0));
-    }, [marketplaceCourses, searchQuery]);
-
+        fetchData();
+    }, [fetchData]);
 
     const handleDeleteCourse = async (courseId: string) => {
-        const originalCourses = userCourses;
-        setUserCourses(prev => prev.filter(c => c.id !== courseId));
+        const originalCourses = courses;
+        setCourses(prev => prev.filter(c => c.id !== courseId));
+        // No active course logic needed here
+    
         try {
             await deleteCourse(courseId);
         } catch (error) {
             console.error("Error deleting course from DB:", error);
-            setUserCourses(originalCourses);
+            // Revert UI on failure
+            setCourses(originalCourses);
         }
     };
     
-    const handleUploadCourse = async (course: Course) => {
-        if (!user) return false;
-        
-        const validationResult = await validateMarketplaceUploadAction({
-            courseTopic: course.topic,
-            courseOutline: course.outline,
-            targetCategory: category,
-        });
-
-        if (!validationResult.isAppropriate) {
-            toast({
-                variant: "destructive",
-                title: "Upload Failed",
-                description: validationResult.reason,
-            });
-            return false;
-        }
-
-        try {
-            // Ensure the user's current display name is used for the upload.
-            const courseToUpload = {
-                ...course,
-                userName: user.displayName || course.userName,
-            };
-
-            await addCourseToMarketplace(courseToUpload, category);
-            toast({
-                title: "Upload Successful!",
-                description: `"${course.topic}" has been added to the marketplace.`,
-            });
-            fetchData(); // Refresh marketplace courses
-            return true;
-        } catch (error) {
-            console.error("Error uploading course:", error);
-            toast({
-                variant: "destructive",
-                title: "Upload Error",
-                description: "Could not upload the course. Please try again."
-            });
-            return false;
-        }
-    };
-
-    const handleLikeToggle = async (courseId: string, userId: string) => {
-        // Optimistic UI update
-        const originalCourses = [...marketplaceCourses];
-        setMarketplaceCourses(prevCourses => 
-            prevCourses.map(course => {
-                if (course.marketplaceId === courseId) {
-                    const isLiked = course.likedBy?.includes(userId);
-                    const newLikes = (course.likes || 0) + (isLiked ? -1 : 1);
-                    const newLikedBy = isLiked 
-                        ? course.likedBy?.filter(id => id !== userId)
-                        : [...(course.likedBy || []), userId];
-                    return { ...course, likes: newLikes, likedBy: newLikedBy };
-                }
-                return course;
-            })
-        );
-        
-        try {
-            await toggleLikeOnMarketplaceCourse(courseId, userId);
-        } catch (error) {
-            console.error("Error toggling like:", error);
-            toast({ variant: 'destructive', title: "Error", description: "Could not update like status."});
-            setMarketplaceCourses(originalCourses); // Revert on error
-        }
-    };
-
-    const handleAddCourseFromMarketplace = async (course: MarketplaceCourse) => {
-        if (!user) {
-            throw new Error("User not authenticated");
-        }
-        await addCourseFromMarketplace(course, user.uid, user.displayName || "You");
-        await fetchData(); // Re-fetch data to ensure UI is in sync and avoid duplicates
-    };
-
     const handleSelectCourse = (id: string) => {
         sessionStorage.setItem('selectedCourseId', id);
         router.push('/learn');
@@ -190,8 +81,8 @@ export default function MarketplaceCategoryPage() {
     const sidebar = (
         <HistorySidebar
           user={user}
-          courses={userCourses}
-          activeCourseId={null}
+          courses={courses}
+          activeCourseId={null} // No active course on this page
           onSelectCourse={handleSelectCourse}
           onCreateNew={() => router.push('/learn')}
           onDeleteCourse={handleDeleteCourse}
@@ -202,64 +93,10 @@ export default function MarketplaceCategoryPage() {
     const mainContent = (
         <div className="h-full p-4 md:p-8">
             <header className="mb-8">
-                <Button variant="ghost" size="sm" asChild className="mb-4">
-                    <Link href="/marketplace">
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Back to Marketplace
-                    </Link>
-                </Button>
-                <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-                    <div>
-                        <h1 className="font-headline text-3xl md:text-4xl font-bold capitalize">{categoryInfo?.name || category}</h1>
-                        <p className="text-muted-foreground max-w-xl">{categoryInfo?.description}</p>
-                    </div>
-                    <div className='flex flex-col sm:flex-row gap-2 items-center w-full md:w-auto'>
-                        <div className="relative flex-1 md:flex-none w-full sm:w-auto">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                                placeholder="Search courses..."
-                                className="pl-10 w-full md:w-64"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                        </div>
-                        <CourseUploadDialog 
-                            userCourses={userCourses} 
-                            onUpload={handleUploadCourse} 
-                            category={category}
-                        />
-                    </div>
-                </div>
+                <h1 className="font-headline text-3xl md:text-4xl font-bold">Marketplace</h1>
+                <p className="text-muted-foreground">Explore courses created by the community.</p>
             </header>
-
-            {pageLoading ? (
-                 <div className="flex items-center justify-center h-64">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                </div>
-            ) : (
-                <div className="space-y-4">
-                    {filteredAndSortedCourses.length > 0 ? (
-                        filteredAndSortedCourses.map(course => (
-                            <MarketplaceCourseCard 
-                                key={course.marketplaceId} 
-                                course={course}
-                                currentUserId={user.uid}
-                                onLikeToggle={handleLikeToggle}
-                                onAddCourse={handleAddCourseFromMarketplace}
-                            />
-                        ))
-                    ) : (
-                        <div className="col-span-full text-center text-muted-foreground py-16">
-                            <p>No courses found for this category{searchQuery && ' matching your search'}.</p>
-                            {searchQuery ? (
-                                <Button variant="link" onClick={() => setSearchQuery('')}>Clear search</Button>
-                            ) : (
-                                <p>Why not be the first to upload one?</p>
-                            )}
-                        </div>
-                    )}
-                </div>
-            )}
+            <MarketplaceCategoryGrid categories={marketplaceCategories} courseCounts={marketplaceCourseCounts} />
         </div>
     );
 
