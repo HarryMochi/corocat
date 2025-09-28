@@ -30,7 +30,7 @@ import Link from "next/link";
 import type { User } from "firebase/auth";
 import { Separator } from "./ui/separator";
 import { Users as UsersIcon } from "lucide-react";
-import CourseInvitations from "./course-invitations";
+
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
@@ -98,7 +98,7 @@ export default function HistorySidebar({
             </CollapsibleTrigger>
             <CollapsibleContent className="mb-4">
               <div className="px-3">
-                <CourseInvitations />
+              
               </div>
             </CollapsibleContent>
           </Collapsible>
