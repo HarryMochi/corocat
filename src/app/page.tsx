@@ -92,7 +92,7 @@ export default function LandingPage() {
                 </div>
                 <div className="mb-8">
                     <p className="text-lg md:text-xl text-muted-foreground max-w-3xl">
-                    Corocat uses AI to create perfectly personalized learning courses on any topic. Go from beginner to expert with a structured, easy-to-follow plan.
+                    Corocat uses AI to create purr-fectly personalized learning courses on any topic. Go from beginner to expert with a structured, easy-to-follow plan.
                     </p>
                 </div>
                 <div className="flex gap-4 justify-center">
@@ -112,15 +112,15 @@ export default function LandingPage() {
                       "screenshot-image",
                       "relative rounded-xl shadow-2xl overflow-hidden w-[90%] max-w-3xl mx-auto"
                   )}>
-                     <Image
-  src="/Landing-screenshot.png"
-  width={1200}
-  height={780}
-  alt="Screenshot of the Corocat application interface"
-  className="w-full h-auto border-2 border-orange-200"
-  data-ai-hint="dashboard analytics"
-  priority
-/>
+                      <Image
+                          src="/Landing-screenshot.png"
+                          width={1200}
+                          height={780}
+                          alt="Screenshot of the Corocat application interface"
+                          className="w-full h-auto"
+                          data-ai-hint="dashboard analytics"
+                          priority
+                      />
                   </div>
               </div>
             </section>

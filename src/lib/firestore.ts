@@ -1,15 +1,13 @@
+
 import { db } from './firebase';
 import { collection, addDoc, getDocs, query, where, doc, updateDoc, deleteDoc, orderBy, getDoc, collectionGroup, runTransaction, arrayUnion, arrayRemove } from 'firebase/firestore';
-import type { Course, CourseData, MarketplaceCourse, CourseInvitation, CourseInvitationData, UserProfile, UserProfileData, CollaborativeCourse } from './types';
+import type { Course, CourseData, MarketplaceCourse } from './types';
 import { FirestorePermissionError, errorEmitter } from './errors';
 import { FirebaseError } from 'firebase/app';
 import { auth } from './firebase';
 
 const coursesCollection = collection(db, 'courses');
 const marketplaceCollection = collection(db, 'marketplaceCourses');
-const invitationsCollection = collection(db, 'courseInvitations');
-const userProfilesCollection = collection(db, 'userProfiles');
-const collaborativeCoursesCollection = collection(db, 'collaborativeCourses');
 
 
 async function handleFirestoreError(error: unknown, refPath: string, operation: 'get' | 'list' | 'create' | 'update' | 'delete', resourceData?: any) {
@@ -33,10 +31,7 @@ export async function addCourse(courseData: CourseData): Promise<string> {
   try {
     const docRef = await addDoc(coursesCollection, {
       ...courseData,
-      notes: courseData.notes ?? "", // Ensure notes field exists
-      learningMode: courseData.learningMode ?? 'solo',
-      collaborators: courseData.collaborators ?? [],
-      collaboratorEmails: courseData.collaboratorEmails ?? []
+      notes: courseData.notes ?? "" // Ensure notes field exists
     });
     return docRef.id;
   } catch (error) {
@@ -50,27 +45,9 @@ export async function addCourse(courseData: CourseData): Promise<string> {
 export async function getCoursesForUser(userId: string): Promise<Course[]> {
   const refPath = `courses`; // Simplified path for error message
   try {
-    // Get courses where user is owner or collaborator
-    const ownerQuery = query(coursesCollection, where('userId', '==', userId), orderBy('createdAt', 'desc'));
-    const collaboratorQuery = query(coursesCollection, where('collaborators', 'array-contains', userId), orderBy('createdAt', 'desc'));
-    
-    const [ownerSnapshot, collaboratorSnapshot] = await Promise.all([
-      getDocs(ownerQuery),
-      getDocs(collaboratorQuery)
-    ]);
-    
-    const ownerCourses = ownerSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
-    const collaboratorCourses = collaboratorSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
-    
-    // Combine and deduplicate
-    const allCourses = [...ownerCourses];
-    collaboratorCourses.forEach(course => {
-      if (!allCourses.find(c => c.id === course.id)) {
-        allCourses.push(course);
-      }
-    });
-    
-    return allCourses.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const q = query(coursesCollection, where('userId', '==', userId), orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
   } catch (error) {
     await handleFirestoreError(error, refPath, 'list');
     throw error;
@@ -256,106 +233,4 @@ export async function toggleLikeOnMarketplaceCourse(courseId: string, userId: st
     } catch (error) {
         await handleFirestoreError(error, refPath, 'update', { userId });
     }
-}
-
-// User Profile Functions
-export async function createUserProfile(userId: string, email: string, displayName: string): Promise<void> {
-  const refPath = `userProfiles/${userId}`;
-  try {
-    const userProfileData: UserProfileData = {
-      email,
-      displayName,
-      createdAt: new Date().toISOString()
-    };
-    const userDoc = doc(db, 'userProfiles', userId);
-    await updateDoc(userDoc, userProfileData).catch(async () => {
-      // If document doesn't exist, create it
-      await addDoc(userProfilesCollection, { ...userProfileData, id: userId });
-    });
-  } catch (error) {
-    await handleFirestoreError(error, refPath, 'create', { email, displayName });
-  }
-}
-
-export async function getUserByEmail(email: string): Promise<UserProfile | null> {
-  const refPath = 'userProfiles';
-  try {
-    const q = query(userProfilesCollection, where('email', '==', email));
-    const querySnapshot = await getDocs(q);
-    if (querySnapshot.empty) {
-      return null;
-    }
-    const doc = querySnapshot.docs[0];
-    return { id: doc.id, ...doc.data() } as UserProfile;
-  } catch (error) {
-    await handleFirestoreError(error, refPath, 'list');
-    throw error;
-  }
-}
-
-// Course Invitation Functions
-export async function sendCourseInvitation(invitationData: CourseInvitationData): Promise<string> {
-  const refPath = 'courseInvitations';
-  try {
-    // Check if user exists with this email
-    const existingUser = await getUserByEmail(invitationData.recipientEmail);
-    const finalInvitationData = {
-      ...invitationData,
-      recipientId: existingUser?.id || undefined
-    };
-    
-    const docRef = await addDoc(invitationsCollection, finalInvitationData);
-    return docRef.id;
-  } catch (error) {
-    await handleFirestoreError(error, refPath, 'create', invitationData);
-    throw error;
-  }
-}
-
-export async function getInvitationsForUser(userId: string): Promise<CourseInvitation[]> {
-  const refPath = 'courseInvitations';
-  try {
-    // Get invitations by user ID or email
-    const user = auth.currentUser;
-    if (!user?.email) return [];
-    
-    const q = query(
-      invitationsCollection, 
-      where('recipientEmail', '==', user.email),
-      where('status', '==', 'pending'),
-      orderBy('createdAt', 'desc')
-    );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CourseInvitation));
-  } catch (error) {
-    await handleFirestoreError(error, refPath, 'list');
-    throw error;
-  }
-}
-
-export async function respondToInvitation(invitationId: string, response: 'accepted' | 'declined'): Promise<void> {
-  const refPath = `courseInvitations/${invitationId}`;
-  try {
-    const invitationDoc = doc(db, 'courseInvitations', invitationId);
-    await updateDoc(invitationDoc, {
-      status: response,
-      respondedAt: new Date().toISOString(),
-      recipientId: auth.currentUser?.uid
-    });
-    
-    // If accepted, add user to course collaborators
-    if (response === 'accepted') {
-      const invitationSnapshot = await getDoc(invitationDoc);
-      if (invitationSnapshot.exists()) {
-        const invitation = invitationSnapshot.data() as CourseInvitation;
-        const courseDoc = doc(db, 'courses', invitation.courseId);
-        await updateDoc(courseDoc, {
-          collaborators: arrayUnion(auth.currentUser?.uid),
-          collaboratorEmails: arrayUnion(invitation.recipientEmail)
-        });
-      }
-    }
-  } catch (error) {
-    await handleFirestoreError(error, refPath, 'update', { status: response });
-  }
 }

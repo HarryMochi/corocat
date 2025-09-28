@@ -3,7 +3,7 @@
 
 import type { Course } from "@/lib/types";
 import { formatDistanceToNow } from "date-fns";
-import { Plus, Trash2, LogOut, MoreHorizontal, Globe, User as UserIcon } from "lucide-react";
+import { Plus, Trash2, LogOut, MoreHorizontal, Crown, Globe, User as UserIcon } from "lucide-react";
 import Logo from "./logo";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "./ui/scroll-area";
@@ -29,11 +29,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
 import type { User } from "firebase/auth";
 import { Separator } from "./ui/separator";
-import { Users as UsersIcon } from "lucide-react";
-
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
-import { ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { AchievementBadge } from "./achievement-badge";
+import { getBadgeForCoursesCreated, getBadgeForCoursesCompleted, getBadgeForCoursesPublished } from "@/lib/achievements";
 
 interface HistorySidebarProps {
   user: User;
@@ -54,8 +51,6 @@ export default function HistorySidebar({
   onDeleteCourse,
   onLogout,
 }: HistorySidebarProps) {
-  const [invitationsOpen, setInvitationsOpen] = useState(false);
-  
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'U';
     const names = name.split(' ');
@@ -64,6 +59,15 @@ export default function HistorySidebar({
     }
     return name[0];
   }
+
+  // Calculate achievement stats
+  const coursesCreated = courses.length;
+  const coursesCompleted = courses.filter(c => c.steps.length > 0 && c.steps.every(s => s.completed)).length;
+  const coursesPublished = courses.filter(c => c.isPublic).length;
+
+  const createdBadge = getBadgeForCoursesCreated(coursesCreated);
+  const completedBadge = getBadgeForCoursesCompleted(coursesCompleted);
+  const publishedBadge = getBadgeForCoursesPublished(coursesPublished);
 
   return (
     <div className="bg-muted/50 h-full flex flex-col">
@@ -86,23 +90,6 @@ export default function HistorySidebar({
       </div>
       <ScrollArea className="flex-1 px-4">
         <div className="space-y-1">
-          <Collapsible open={invitationsOpen} onOpenChange={setInvitationsOpen}>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="w-full justify-between text-left h-auto py-2 px-3 mb-2">
-                <div className="flex items-center gap-2">
-                  <UsersIcon className="h-4 w-4" />
-                  <span className="font-medium">Invitations</span>
-                </div>
-                <ChevronDown className={`h-4 w-4 transition-transform ${invitationsOpen ? 'rotate-180' : ''}`} />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mb-4">
-              <div className="px-3">
-              
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-          
           {courses.map((course) => {
             const completedSteps = course.steps.filter(s => s.completed).length;
             const totalSteps = course.steps.length;
@@ -115,12 +102,7 @@ export default function HistorySidebar({
                   className="w-full justify-start text-left h-auto py-2 px-3"
                 >
                   <div className="flex flex-col gap-1 w-full overflow-hidden">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium truncate">{course.topic}</span>
-                      {course.learningMode === 'collaborative' && (
-                        <UsersIcon className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                      )}
-                    </div>
+                    <span className="font-medium truncate">{course.topic}</span>
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>
                         {formatDistanceToNow(new Date(course.createdAt), { addSuffix: true })}
@@ -173,6 +155,11 @@ export default function HistorySidebar({
                       </div>
                       <MoreHorizontal className="h-4 w-4 ml-auto" />
                     </div>
+                    <div className="w-full flex justify-start flex-wrap gap-1 pl-1 pt-2">
+                       <AchievementBadge badge={createdBadge} value={coursesCreated} />
+                       <AchievementBadge badge={completedBadge} value={coursesCompleted} />
+                       <AchievementBadge badge={publishedBadge} value={coursesPublished} />
+                    </div>
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56 mb-2" side="top" align="start">
@@ -193,3 +180,4 @@ export default function HistorySidebar({
     </div>
   );
 }
+
