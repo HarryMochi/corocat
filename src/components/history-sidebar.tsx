@@ -3,7 +3,7 @@
 
 import type { Course } from "@/lib/types";
 import { formatDistanceToNow } from "date-fns";
-import { Plus, Trash2, LogOut, MoreHorizontal, Crown, Globe, User as UserIcon } from "lucide-react";
+import { Plus, Trash2, LogOut, MoreHorizontal, Globe, User as UserIcon } from "lucide-react";
 import Logo from "./logo";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "./ui/scroll-area";
@@ -29,8 +29,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
 import type { User } from "firebase/auth";
 import { Separator } from "./ui/separator";
-import { AchievementBadge } from "./achievement-badge";
-import { getBadgeForCoursesCreated, getBadgeForCoursesCompleted, getBadgeForCoursesPublished } from "@/lib/achievements";
 
 interface HistorySidebarProps {
   user: User;
@@ -59,15 +57,6 @@ export default function HistorySidebar({
     }
     return name[0];
   }
-
-  // Calculate achievement stats
-  const coursesCreated = courses.length;
-  const coursesCompleted = courses.filter(c => c.steps.length > 0 && c.steps.every(s => s.completed)).length;
-  const coursesPublished = courses.filter(c => c.isPublic).length;
-
-  const createdBadge = getBadgeForCoursesCreated(coursesCreated);
-  const completedBadge = getBadgeForCoursesCompleted(coursesCompleted);
-  const publishedBadge = getBadgeForCoursesPublished(coursesPublished);
 
   return (
     <div className="bg-muted/50 h-full flex flex-col">
@@ -155,11 +144,6 @@ export default function HistorySidebar({
                       </div>
                       <MoreHorizontal className="h-4 w-4 ml-auto" />
                     </div>
-                    <div className="w-full flex justify-start flex-wrap gap-1 pl-1 pt-2">
-                       <AchievementBadge badge={createdBadge} value={coursesCreated} />
-                       <AchievementBadge badge={completedBadge} value={coursesCompleted} />
-                       <AchievementBadge badge={publishedBadge} value={coursesPublished} />
-                    </div>
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56 mb-2" side="top" align="start">
@@ -180,4 +164,3 @@ export default function HistorySidebar({
     </div>
   );
 }
-
