@@ -11,7 +11,6 @@ import HistorySidebar from '@/components/history-sidebar';
 import type { Course } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { getBadgeForCoursesCreated, getBadgeForCoursesCompleted, getBadgeForCoursesPublished } from '@/lib/achievements';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -24,16 +23,12 @@ interface UserProfile {
     coursesPublished: number;
 }
 
-const ProfileBadge = ({ badge, value }: { badge: ReturnType<typeof getBadgeForCoursesCreated>, value: number }) => (
-    <div className="flex flex-col items-center text-center">
-        <div className={`p-3 rounded-full ${badge.className}`}>
-            <badge.icon className="h-6 w-6" />
-        </div>
-        <p className="font-semibold mt-2 text-sm">{badge.name}</p>
-        <p className="text-xs text-muted-foreground">{value}</p>
+const ProfileCounter = ({ label, value }: { label: string, value: number }) => (
+    <div className="flex flex-col items-center text-center p-4 bg-muted rounded-lg">
+        <p className="text-2xl font-bold">{value}</p>
+        <p className="text-sm text-muted-foreground">{label}</p>
     </div>
 );
-
 
 export default function ProfilePage() {
     const { user, loading, logout } = useAuth();
@@ -49,12 +44,10 @@ export default function ProfilePage() {
         if (!userId) return;
         setPageLoading(true);
         try {
-            // Use the new public data fetching function
             const userData = await getPublicProfileData(userId);
             setProfile(userData);
         } catch (error) {
             console.error("Error fetching profile data:", error);
-            // Optionally, redirect to a 404 page or show an error
         } finally {
             setPageLoading(false);
         }
@@ -81,7 +74,6 @@ export default function ProfilePage() {
         setSidebarCourses(prev => prev.filter(c => c.id !== courseId));
         try {
             await deleteCourse(courseId);
-             // If a deleted course might have been public, refetch profile data
             if (profile) {
                 fetchProfileData();
             }
@@ -131,11 +123,6 @@ export default function ProfilePage() {
 
     const { coursesCreated, coursesCompleted, coursesPublished } = profile;
 
-    const createdBadge = getBadgeForCoursesCreated(coursesCreated);
-    const completedBadge = getBadgeForCoursesCompleted(coursesCompleted);
-    const publishedBadge = getBadgeForCoursesPublished(coursesPublished);
-
-
     const mainContent = (
         <div className="h-full p-4 md:p-8 max-w-4xl mx-auto">
             <header className="mb-8">
@@ -148,7 +135,6 @@ export default function ProfilePage() {
             </header>
             <div className="flex flex-col items-center gap-6">
                 <Avatar className="h-24 w-24 border-4 border-primary/20">
-                    {/* In a real app, user.photoURL would be here */}
                     <AvatarFallback className="text-3xl">{getInitials(profile.displayName)}</AvatarFallback>
                 </Avatar>
                 <div className="text-center">
@@ -158,12 +144,12 @@ export default function ProfilePage() {
 
                 <Card className="w-full">
                     <CardHeader>
-                        <CardTitle className="text-lg font-headline text-center">Achievements</CardTitle>
+                        <CardTitle className="text-lg font-headline text-center">Statistics</CardTitle>
                     </CardHeader>
                     <CardContent className="grid grid-cols-3 gap-4 p-6 pt-0">
-                       <ProfileBadge badge={createdBadge} value={coursesCreated} />
-                       <ProfileBadge badge={completedBadge} value={coursesCompleted} />
-                       <ProfileBadge badge={publishedBadge} value={coursesPublished} />
+                       <ProfileCounter label="Courses Created" value={coursesCreated} />
+                       <ProfileCounter label="Courses Completed" value={coursesCompleted} />
+                       <ProfileCounter label="Courses Published" value={coursesPublished} />
                     </CardContent>
                 </Card>
                 <p className="text-xs text-muted-foreground text-center max-w-sm">Note: Only statistics from publicly shared courses are displayed on this profile.</p>
