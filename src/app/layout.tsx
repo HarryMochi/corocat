@@ -1,4 +1,3 @@
-
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
@@ -25,16 +24,16 @@ export const metadata: Metadata = {
     siteName: 'Corocat',
     images: [
       {
-        url: 'https://corocat.me/cat.png', // It's a good practice to create a social sharing image
-        width: 1200,
-        height: 630,
+        url: 'https://corocat.me/cat.png',
+        width: 400, // Reduced from 1200
+        height: 400, // Reduced from 630 and made square
       },
     ],
     locale: 'en_US',
     type: 'website',
   },
    twitter: {
-    card: 'summary_large_image',
+    card: 'summary', // Changed from 'summary_large_image' to 'summary' for smaller icon
     title: 'Corocat: Your AI Guide to Learning Any Subject',
     description: 'Corocat uses AI to create personalized learning courses on any topic. Go from beginner to expert with a structured, easy-to-follow plan.',
     images: ['https://corocat.me/cat.png'],
