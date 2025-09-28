@@ -63,7 +63,7 @@ export default function RootLayout({
         <script
           defer
           src="https://cloud.umami.is/script.js"
-          data-website-id="44c3a21a-d2ed-40c1-9f3b-15ba275cb562"
+          data-website-id="20a634ca-a2d2-44c3-8ef4-da69d61af767"
         ></script>
         {/* Google tag (gtag.js) */}
         <script async src="https://www.googletagmanager.com/gtag/js?id=G-HP0G6MC9Q9"></script>
