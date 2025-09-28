@@ -73,7 +73,7 @@ function LoadingCarousel() {
                     );
                 })}
             </div>
-             <p className="text-sm text-muted-foreground/80">This may take a minute.</p>
+             <p className="text-sm text-muted-foreground/80">Quick Overview can take up to 1 minute<br></br>Normal Path can take up to 3 minutes<br></br>Long Mastery can take up to 5 minutes</p>
         </div>
     );
 }
