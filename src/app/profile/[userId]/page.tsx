@@ -24,13 +24,13 @@ interface UserProfile {
     coursesPublished: number;
 }
 
-const ProfileBadge = ({ badge, value }: { badge: ReturnType<typeof getBadgeForCoursesCreated>, value: number }) => (
+const ProfileBadge = ({ badge, value, description }: { badge: ReturnType<typeof getBadgeForCoursesCreated>, value: number, description: string }) => (
     <div className="flex flex-col items-center text-center">
         <div className={`p-3 rounded-full ${badge.className}`}>
             <badge.icon className="h-6 w-6" />
         </div>
         <p className="font-semibold mt-2 text-sm">{badge.name}</p>
-        <p className="text-xs text-muted-foreground">{value}</p>
+        <p className="text-xs text-muted-foreground">{description}</p>
     </div>
 );
 
@@ -161,9 +161,9 @@ export default function ProfilePage() {
                         <CardTitle className="text-lg font-headline text-center">Achievements</CardTitle>
                     </CardHeader>
                     <CardContent className="grid grid-cols-3 gap-4 p-6 pt-0">
-                       <ProfileBadge badge={createdBadge} value={coursesCreated} />
-                       <ProfileBadge badge={completedBadge} value={coursesCompleted} />
-                       <ProfileBadge badge={publishedBadge} value={coursesPublished} />
+                       <ProfileBadge badge={createdBadge} value={coursesCreated} description={`${coursesCreated} courses created`} />
+                       <ProfileBadge badge={completedBadge} value={coursesCompleted} description={`${coursesCompleted} courses completed`} />
+                       <ProfileBadge badge={publishedBadge} value={coursesPublished} description={`${coursesPublished} courses published`} />
                     </CardContent>
                 </Card>
                 <p className="text-xs text-muted-foreground text-center max-w-sm">Note: Only statistics from publicly shared courses are displayed on this profile.</p>
