@@ -5,6 +5,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, User, GoogleAuthProvider, signInWithPopup, sendEmailVerification, sendPasswordResetEmail, updateProfile } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { usePathname, useRouter } from 'next/navigation';
+import { createUserProfile } from '@/lib/firestore';
 
 interface AuthContextType {
   user: User | null;
@@ -50,6 +51,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await userCredential.user.reload();
         setUser(auth.currentUser);
 
+        // Create user profile for invitation system
+        await createUserProfile(userCredential.user.uid, email, displayName);
         await sendEmailVerification(userCredential.user);
     }
     return userCredential;
@@ -61,7 +64,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginWithGoogle = () => {
     const provider = new GoogleAuthProvider();
-    return signInWithPopup(auth, provider);
+    return signInWithPopup(auth, provider).then(async (result) => {
+      // Create user profile for invitation system
+      if (result.user.email && result.user.displayName) {
+        await createUserProfile(result.user.uid, result.user.email, result.user.displayName);
+      }
+      return result;
+    });
   }
 
   const logout = () => {

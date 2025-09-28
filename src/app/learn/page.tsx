@@ -18,6 +18,8 @@ import type { GenerateFullCourseInput } from '@/ai/flows/generate-full-course';
 import LearnLayout from '@/components/learn-layout';
 import type { Message } from '@/components/step-workspace';
 import type { GenerateStepQuizOutput } from '@/ai/flows/generate-step-quiz';
+import { sendCourseInvitation, createUserProfile } from '@/lib/firestore';
+import type { CourseInvitationData } from '@/lib/types';
 
 
 export type GenerationState = {
@@ -74,6 +76,11 @@ export default function LearnPage() {
         return;
     }
     
+    // Create/update user profile for invitation system
+    if (user.email && user.displayName) {
+      await createUserProfile(user.uid, user.email, user.displayName);
+    }
+    
     setGenerationState({ status: 'generating' });
     try {
       const result = await generateCourseAction(input);
@@ -104,6 +111,9 @@ export default function LearnPage() {
       const newCourseData = {
         topic: input.topic,
         depth: input.masteryLevel as 'Quick Overview' | 'Normal Path' | 'Long Mastery',
+        learningMode: input.learningMode as 'solo' | 'collaborative',
+        collaborators: [],
+        collaboratorEmails: [],
         outline: JSON.stringify(result.course.map(s => ({ step: s.step, title: s.title, description: s.description })), null, 2),
         steps: steps,
         notes: "",
@@ -116,6 +126,31 @@ export default function LearnPage() {
       const newCourseId = await addCourse(newCourseData);
       const newCourse: Course = { id: newCourseId, ...newCourseData };
 
+      // Send invitations if collaborative mode
+      if (input.learningMode === 'collaborative' && input.collaboratorEmails) {
+        for (const email of input.collaboratorEmails) {
+          try {
+            const invitationData: CourseInvitationData = {
+              courseId: newCourseId,
+              courseTopic: input.topic,
+              senderId: user.uid,
+              senderName: user.displayName || user.email?.split('@')[0] || "Anonymous",
+              senderEmail: user.email || "",
+              recipientEmail: email,
+              status: 'pending',
+              createdAt: new Date().toISOString()
+            };
+            await sendCourseInvitation(invitationData);
+          } catch (error) {
+            console.error(`Failed to send invitation to ${email}:`, error);
+          }
+        }
+        
+        toast({
+          title: "Course Created!",
+          description: `Invitations sent to ${input.collaboratorEmails.length} collaborator(s).`,
+        });
+      }
       setCourses(prev => [newCourse, ...prev]);
       setActiveCourseId(newCourse.id);
       setGenerationState({ status: 'done' });

@@ -29,6 +29,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
 import type { User } from "firebase/auth";
 import { Separator } from "./ui/separator";
+import { Users as UsersIcon } from "lucide-react";
+import CourseInvitations from "./course-invitations";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
+import { ChevronDown } from "lucide-react";
+import { useState } from "react";
 
 interface HistorySidebarProps {
   user: User;
@@ -49,6 +54,8 @@ export default function HistorySidebar({
   onDeleteCourse,
   onLogout,
 }: HistorySidebarProps) {
+  const [invitationsOpen, setInvitationsOpen] = useState(false);
+  
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'U';
     const names = name.split(' ');
@@ -79,6 +86,23 @@ export default function HistorySidebar({
       </div>
       <ScrollArea className="flex-1 px-4">
         <div className="space-y-1">
+          <Collapsible open={invitationsOpen} onOpenChange={setInvitationsOpen}>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" className="w-full justify-between text-left h-auto py-2 px-3 mb-2">
+                <div className="flex items-center gap-2">
+                  <UsersIcon className="h-4 w-4" />
+                  <span className="font-medium">Invitations</span>
+                </div>
+                <ChevronDown className={`h-4 w-4 transition-transform ${invitationsOpen ? 'rotate-180' : ''}`} />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mb-4">
+              <div className="px-3">
+                <CourseInvitations />
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+          
           {courses.map((course) => {
             const completedSteps = course.steps.filter(s => s.completed).length;
             const totalSteps = course.steps.length;
@@ -91,7 +115,12 @@ export default function HistorySidebar({
                   className="w-full justify-start text-left h-auto py-2 px-3"
                 >
                   <div className="flex flex-col gap-1 w-full overflow-hidden">
-                    <span className="font-medium truncate">{course.topic}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium truncate">{course.topic}</span>
+                      {course.learningMode === 'collaborative' && (
+                        <UsersIcon className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                      )}
+                    </div>
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>
                         {formatDistanceToNow(new Date(course.createdAt), { addSuffix: true })}

@@ -17,6 +17,9 @@ import { Textarea } from "./ui/textarea";
 import { cn } from "@/lib/utils";
 import type { GenerateFullCourseInput } from "@/ai/flows/generate-full-course";
 import { Label } from "./ui/label";
+import { Users, User } from "lucide-react";
+import { Badge } from "./ui/badge";
+import { X } from "lucide-react";
 
 const formSchema = z.object({
   topic: z.string().min(2, {
@@ -90,6 +93,9 @@ export default function TopicSelection({ onGenerateCourse, generationState }: To
   const [knowledgeLevel, setKnowledgeLevel] = useState('Beginner');
   const [masteryLevel, setMasteryLevel] = useState('Normal Path');
   const [additionalComments, setAdditionalComments] = useState('');
+  const [learningMode, setLearningMode] = useState<'solo' | 'collaborative'>('solo');
+  const [collaboratorEmails, setCollaboratorEmails] = useState<string[]>([]);
+  const [emailInput, setEmailInput] = useState('');
 
   const isGenerating = generationState.status === 'generating';
 
@@ -120,13 +126,98 @@ export default function TopicSelection({ onGenerateCourse, generationState }: To
         topic,
         knowledgeLevel,
         masteryLevel,
+        learningMode,
+        collaboratorCount: collaboratorEmails.length + 1, // +1 for the creator
         additionalComments
     });
   }
 
+  const addCollaboratorEmail = () => {
+    const email = emailInput.trim();
+    if (email && email.includes('@') && !collaboratorEmails.includes(email)) {
+      setCollaboratorEmails([...collaboratorEmails, email]);
+      setEmailInput('');
+    }
+  };
+
+  const removeCollaboratorEmail = (emailToRemove: string) => {
+    setCollaboratorEmails(collaboratorEmails.filter(email => email !== emailToRemove));
+  };
   const renderQuestionnaire = () => {
     switch(questionStep) {
         case 1:
+            return (
+                <div className="text-center space-y-6 animate-fade-in-up">
+                    <h3 className="font-semibold text-lg">How do you want to learn?</h3>
+                    <RadioGroup 
+                        value={learningMode}
+                        onValueChange={(value: 'solo' | 'collaborative') => setLearningMode(value)} 
+                        className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                    >
+                        <Label htmlFor="solo" className={cn("border rounded-md p-4 cursor-pointer flex flex-col items-center gap-2 text-center", learningMode === 'solo' && "border-primary ring-2 ring-primary bg-primary/5")}>
+                            <RadioGroupItem value="solo" id="solo" className="sr-only"/>
+                            <User className="h-8 w-8 text-primary/80" />
+                            <span className="font-bold">Solo Learner</span>
+                            <span className="text-xs text-muted-foreground">Learn at your own pace</span>
+                        </Label>
+                        <Label htmlFor="collaborative" className={cn("border rounded-md p-4 cursor-pointer flex flex-col items-center gap-2 text-center", learningMode === 'collaborative' && "border-primary ring-2 ring-primary bg-primary/5")}>
+                            <RadioGroupItem value="collaborative" id="collaborative" className="sr-only"/>
+                            <Users className="h-8 w-8 text-primary/80" />
+                            <span className="font-bold">Collaborative</span>
+                            <span className="text-xs text-muted-foreground">Learn with others</span>
+                        </Label>
+                    </RadioGroup>
+                    
+                    {learningMode === 'collaborative' && (
+                        <div className="space-y-4 animate-fade-in-up">
+                            <div className="text-left">
+                                <Label htmlFor="collaborator-email" className="text-sm font-medium">Invite Collaborators</Label>
+                                <div className="flex gap-2 mt-2">
+                                    <Input
+                                        id="collaborator-email"
+                                        type="email"
+                                        placeholder="colleague@example.com"
+                                        value={emailInput}
+                                        onChange={(e) => setEmailInput(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                addCollaboratorEmail();
+                                            }
+                                        }}
+                                    />
+                                    <Button type="button" onClick={addCollaboratorEmail} size="sm">
+                                        Add
+                                    </Button>
+                                </div>
+                            </div>
+                            
+                            {collaboratorEmails.length > 0 && (
+                                <div className="text-left">
+                                    <Label className="text-sm font-medium">Collaborators ({collaboratorEmails.length})</Label>
+                                    <div className="flex flex-wrap gap-2 mt-2">
+                                        {collaboratorEmails.map((email) => (
+                                            <Badge key={email} variant="secondary" className="flex items-center gap-1">
+                                                {email}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeCollaboratorEmail(email)}
+                                                    className="ml-1 hover:bg-destructive hover:text-destructive-foreground rounded-full p-0.5"
+                                                >
+                                                    <X className="h-3 w-3" />
+                                                </button>
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    
+                    <Button onClick={() => setQuestionStep(2)}>Next</Button>
+                </div>
+            );
+        case 2:
             return (
                 <div className="text-center space-y-6 animate-fade-in-up">
                     <h3 className="font-semibold text-lg">How well do you know this topic?</h3>
@@ -157,10 +248,13 @@ export default function TopicSelection({ onGenerateCourse, generationState }: To
                             </div>
                         </Label>
                     </RadioGroup>
-                    <Button onClick={() => setQuestionStep(2)}>Next</Button>
+                    <div className="flex gap-2 justify-center">
+                        <Button variant="outline" onClick={() => setQuestionStep(1)}>Back</Button>
+                        <Button onClick={() => setQuestionStep(3)}>Next</Button>
+                    </div>
                 </div>
             );
-        case 2:
+        case 3:
             return (
                  <div className="text-center space-y-6 animate-fade-in-up">
                     <h3 className="font-semibold text-lg">How deep do you want to go?</h3>
@@ -189,12 +283,12 @@ export default function TopicSelection({ onGenerateCourse, generationState }: To
                         </Label>
                     </RadioGroup>
                     <div className="flex gap-2 justify-center">
-                        <Button variant="outline" onClick={() => setQuestionStep(1)}>Back</Button>
-                        <Button onClick={() => setQuestionStep(3)}>Next</Button>
+                        <Button variant="outline" onClick={() => setQuestionStep(2)}>Back</Button>
+                        <Button onClick={() => setQuestionStep(4)}>Next</Button>
                     </div>
                 </div>
             );
-        case 3:
+        case 4:
              return (
                  <div className="space-y-6 animate-fade-in-up text-center">
                     <h3 className="font-semibold text-lg">Any special requests? (Optional)</h3>
@@ -205,7 +299,7 @@ export default function TopicSelection({ onGenerateCourse, generationState }: To
                         className="min-h-[100px]"
                      />
                     <div className="flex gap-2 justify-center">
-                        <Button variant="outline" onClick={() => setQuestionStep(2)}>Back</Button>
+                        <Button variant="outline" onClick={() => setQuestionStep(3)}>Back</Button>
                         <Button onClick={handleStartGeneration} className="bg-accent text-accent-foreground hover:bg-accent/90">Generate My Course</Button>
                     </div>
                 </div>
