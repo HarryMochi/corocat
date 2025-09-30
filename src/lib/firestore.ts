@@ -1,7 +1,7 @@
 
 import { db } from './firebase';
 import { collection, addDoc, getDocs, query, where, doc, updateDoc, deleteDoc, orderBy, getDoc, collectionGroup, runTransaction, arrayUnion, arrayRemove } from 'firebase/firestore';
-import type { Course, CourseData, MarketplaceCourse } from './types';
+import type { Course, CourseData, MarketplaceCourse, Step, QuizSet } from './types';
 import { FirestorePermissionError, errorEmitter } from './errors';
 import { FirebaseError } from 'firebase/app';
 import { auth } from './firebase';
@@ -190,12 +190,32 @@ export async function getAllMarketplaceCourses(): Promise<MarketplaceCourse[]> {
 export async function addCourseFromMarketplace(course: MarketplaceCourse, userId: string, userName: string): Promise<string> {
     const { marketplaceId, originalCourseId, ...courseData } = course;
 
+    // Reset progress for the new user
+    const resetSteps = courseData.steps.map((step: Step) => {
+        const newStep = { ...step, completed: false };
+        if (newStep.quiz) {
+            const resetQuestions = newStep.quiz.questions.map(q => ({
+                ...q,
+                userAnswer: null,
+                isCorrect: null,
+            }));
+            newStep.quiz = {
+                ...newStep.quiz,
+                score: null,
+                questions: resetQuestions
+            };
+        }
+        return newStep;
+    });
+
     const newCourseData: CourseData = {
         ...courseData,
-        userId,
+        steps: resetSteps,
+        userId, // Set the new owner
         userName,
         isPublic: false, // It's a private copy for the new user
         createdAt: new Date().toISOString(),
+        notes: "", // Start with fresh notes
     };
 
     return addCourse(newCourseData);

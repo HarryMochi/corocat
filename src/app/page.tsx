@@ -128,7 +128,7 @@ export default function LandingPage() {
                           width={1200}
                           height={780}
                           alt="Screenshot of the Corocat application interface"
-                          className="w-full h-auto"
+                          className="w-full h-auto border-2"
                           data-ai-hint="dashboard analytics"
                           priority
                       />
