@@ -1,52 +1,38 @@
+'use client';
 
-"use client";
+import { useEffect, useState } from 'react';
 
-import { useState, useEffect } from 'react';
-
-interface TypingEffectProps {
-  words: string[];
-  typingSpeed?: number;
-  deletingSpeed?: number;
-  delay?: number;
-}
-
-export default function TypingEffect({
-  words,
-  typingSpeed = 100,
-  deletingSpeed = 50,
-  delay = 2000,
-}: TypingEffectProps) {
-  const [wordIndex, setWordIndex] = useState(0);
-  const [text, setText] = useState('');
+export default function TypingEffect({ words }: { words: string[] }) {
+  const [index, setIndex] = useState(0);
+  const [subIndex, setSubIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [text, setText] = useState('');
 
   useEffect(() => {
-    const currentWord = words[wordIndex];
-
-    const type = () => {
-      if (isDeleting) {
-        setText(currentWord.substring(0, text.length - 1));
+    if (isDeleting) {
+      if (subIndex === 0) {
+        setIsDeleting(false);
+        setIndex((prev) => (prev + 1) % words.length);
       } else {
-        setText(currentWord.substring(0, text.length + 1));
+        setTimeout(() => setSubIndex((prev) => prev - 1), 100);
       }
-    };
-
-    const typingTimeout = setTimeout(type, isDeleting ? deletingSpeed : typingSpeed);
-
-    if (!isDeleting && text === currentWord) {
-      setTimeout(() => setIsDeleting(true), delay);
-    } else if (isDeleting && text === '') {
-      setIsDeleting(false);
-      setWordIndex((prev) => (prev + 1) % words.length);
+    } else {
+      if (subIndex === words[index].length) {
+        setTimeout(() => setIsDeleting(true), 2000);
+      } else {
+        setTimeout(() => setSubIndex((prev) => prev + 1), 150);
+      }
     }
+  }, [subIndex, isDeleting, index, words]);
 
-    return () => clearTimeout(typingTimeout);
-  }, [text, isDeleting, wordIndex, words, typingSpeed, deletingSpeed, delay]);
+  useEffect(() => {
+    setText(words[index].substring(0, subIndex));
+  }, [subIndex, index, words]);
 
   return (
-    <span className="inline-block bg-accent/20 text-accent-foreground px-2 rounded-md min-h-[1.2em]">
-      {text}
-      <span className="animate-blink">|</span>
+    <span className="relative">
+        {text}
+        <span className="animate-pulse">|</span>
     </span>
   );
 }

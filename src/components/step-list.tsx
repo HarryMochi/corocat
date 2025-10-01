@@ -10,7 +10,8 @@ import { PathChest, PathCastle } from "./path-icons";
 interface StepListProps {
   steps: Step[];
   onStepSelect: (step: Step) => void;
-  onUpdateStep: (stepNumber: number, data: Partial<Step>) => void; // Keep for potential future use, though unused in this new design
+  onUpdateStep: (stepNumber: number, data: Partial<Step>) => void;
+  onCourseComplete: () => void;
 }
 
 const stepIcons = [Book, Code, Brain, Target, Puzzle, FlaskConical, Star];
@@ -29,7 +30,9 @@ const SpecialNode = ({ icon }: { icon: React.ReactNode }) => (
 );
 
 
-export function StepList({ steps, onStepSelect }: StepListProps) {
+export function StepList({ steps, onStepSelect, onCourseComplete }: StepListProps) {
+  const allStepsCompleted = steps.every(s => s.completed);
+  
   return (
     <div className="h-full p-4 md:p-8 pt-6 flex-1 min-h-0 overflow-y-auto">
         <div className="relative w-full max-w-sm mx-auto">
@@ -94,12 +97,17 @@ export function StepList({ steps, onStepSelect }: StepListProps) {
             </div>
 
              {/* End Node */}
-             <div className="relative flex justify-center items-center mt-4">
-                <div className={cn("w-16 h-16 rounded-full flex items-center justify-center border-4 border-background shadow-md",
-                    steps.every(s => s.completed) ? "bg-amber-400 text-amber-900" : "bg-muted text-muted-foreground"
-                )}>
+            <div className="relative flex justify-center items-center mt-4">
+                <button 
+                    onClick={allStepsCompleted ? onCourseComplete : undefined}
+                    disabled={!allStepsCompleted}
+                    className={cn("w-16 h-16 rounded-full flex items-center justify-center border-4 border-background shadow-md",
+                        allStepsCompleted ? "bg-amber-400 text-amber-900 cursor-pointer hover:bg-amber-500 transition-colors" : "bg-muted text-muted-foreground"
+                    )}
+                    aria-label="Finish Course"
+                >
                     <Check className="w-8 h-8" />
-                </div>
+                </button>
             </div>
         </div>
     </div>

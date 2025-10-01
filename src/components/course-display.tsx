@@ -21,6 +21,7 @@ interface CourseDisplayProps {
   onAssistWithNotes: (course: Course, notes: string, request: string) => Promise<AssistWithNotesOutput>;
   onGenerateQuiz: (course: Course, step: Step) => Promise<GenerateStepQuizOutput>;
   onQuizRestart: (courseId: string, stepNumber: number) => void;
+  onCourseComplete: () => void;
 }
 
 export default function CourseDisplay({ 
@@ -33,6 +34,7 @@ export default function CourseDisplay({
     onAssistWithNotes, 
     onGenerateQuiz,
     onQuizRestart,
+    onCourseComplete,
 }: CourseDisplayProps) {
   const [activeStep, setActiveStep] = useState<Step | null>(null);
 
@@ -64,6 +66,7 @@ export default function CourseDisplay({
           steps={course.steps}
           onStepSelect={handleStepSelect}
           onUpdateStep={(stepNumber, data) => onUpdateStep(course.id, stepNumber, data)}
+          onCourseComplete={onCourseComplete}
         />
         
       </div>

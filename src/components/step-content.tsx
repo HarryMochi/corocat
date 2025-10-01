@@ -1,21 +1,18 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { Step, SubStep } from '@/lib/types';
-import { Loader2, X, Maximize, Code, BookOpen, CheckCircle, XCircle, BrainCircuit, AlertTriangle } from 'lucide-react';
+import { Loader2, X, BookOpen, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent } from './ui/dialog';
-import { ScrollArea } from './ui/scroll-area';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Label } from './ui/label';
 import { Card, CardHeader, CardContent, CardFooter } from './ui/card';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { Alert, AlertDescription } from './ui/alert';
 
 interface StepContentProps {
     step?: Step;
-    onStepComplete: () => void;
 }
 
 function ExerciseDisplay({ subStep }: { subStep: SubStep }) {
@@ -47,6 +44,7 @@ function ExerciseDisplay({ subStep }: { subStep: SubStep }) {
 
     return (
         <div className="p-8 md:p-12 space-y-8">
+            <h3 className="text-2xl font-bold mb-8">Exercise</h3>
             {showWarning && (
                 <Alert variant="destructive" className="mb-4">
                     <AlertTriangle className="h-4 w-4" />
@@ -108,8 +106,8 @@ function ExerciseDisplay({ subStep }: { subStep: SubStep }) {
     );
 }
 
-export function StepContent({ step, onStepComplete }: StepContentProps) {
-    const [activeSubStepIndex, setActiveSubStepIndex] = useState(0);
+export function StepContent({ step }: StepContentProps) {
+    const [activeSubStepIndex, setActiveSubStepIndex] = useState<number | null>(null);
 
     if (!step) {
         return (
@@ -129,67 +127,89 @@ export function StepContent({ step, onStepComplete }: StepContentProps) {
     }
     
     const handleNext = () => {
-        if (activeSubStepIndex < step.subSteps.length - 1) {
-            setActiveSubStepIndex(prev => prev + 1);
+        if (activeSubStepIndex !== null && activeSubStepIndex < step.subSteps.length - 1) {
+            setActiveSubStepIndex(prev => prev! + 1);
         }
     };
 
     const handlePrevious = () => {
-        if (activeSubStepIndex > 0) {
-            setActiveSubStepIndex(prev => prev - 1);
+        if (activeSubStepIndex !== null && activeSubStepIndex > 0) {
+            setActiveSubStepIndex(prev => prev! - 1);
         }
     };
 
+    const activeSubStep = activeSubStepIndex !== null ? step.subSteps[activeSubStepIndex] : null;
+
     return (
-        <Accordion type="single" collapsible className="w-full space-y-4" value={activeSubStepIndex.toString()} onValueChange={(value) => setActiveSubStepIndex(Number(value))}>
+        <div className="w-full">
             {step.subSteps.map((subStep, index) => (
-                <AccordionItem value={index.toString()} key={index} className="border-b-0">
-                     <AccordionTrigger className="w-full text-left p-6 rounded-xl border bg-background hover:bg-muted/50 transition-colors flex items-center justify-between gap-4 shadow-sm">
-                        <div>
-                            <h3 className="font-semibold text-lg">{subStep.title}</h3>
-                            <p className="text-sm text-muted-foreground mt-1">Section {index + 1} of {step.subSteps.length}</p>
+                <div key={index} className="flex gap-x-6">
+                    {/* Timeline Column */}
+                    <div className="flex flex-col items-center">
+                        <div className="flex-shrink-0 w-6 h-6 rounded-full border-2 border-primary bg-background flex items-center justify-center">
+                            <div className="w-3 h-3 rounded-full bg-primary/50" />
                         </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="border-t-0">
-                         <Dialog open={true} onOpenChange={() => {}}>
-                            <DialogContent className="max-w-full w-full h-screen flex flex-col p-0 gap-0 data-[state=open]:animate-none data-[state=closed]:animate-none !rounded-none">
-                                <div className="p-4 border-b flex items-center justify-between shrink-0">
-                                    <div className="flex items-center gap-3">
-                                        <BookOpen className="h-5 w-5 text-muted-foreground" />
-                                        <h2 className="text-xl font-semibold">{subStep.title}</h2>
-                                    </div>
-                                </div>
-                                <div className="flex-1 grid md:grid-cols-2 min-h-0">
-                                    <ScrollArea className="flex-1 min-h-0 bg-background">
-                                        <div
-                                            className="prose prose-lg dark:prose-invert max-w-none p-12 md:p-16"
-                                            dangerouslySetInnerHTML={{ __html: subStep.content }}
-                                        />
-                                    </ScrollArea>
-                                    <ScrollArea className="flex-1 min-h-0 bg-muted/30 border-l">
-                                        <ExerciseDisplay subStep={subStep} />
-                                    </ScrollArea>
-                                </div>
-                                 <div className="p-4 border-t flex justify-between items-center">
-                                    <Button variant="outline" onClick={handlePrevious} disabled={index === 0}>
-                                        Previous
-                                    </Button>
-                                    {index === step.subSteps.length - 1 ? (
-                                        <Button onClick={onStepComplete} size="lg">
-                                            Finish Step
-                                        </Button>
-                                    ) : (
-                                        <Button onClick={handleNext}>
-                                            Next
-                                        </Button>
-                                    )}
-                                </div>
-                            </DialogContent>
-                        </Dialog>
-                    </AccordionContent>
-                </AccordionItem>
+                        {index < step.subSteps.length - 1 && (
+                            <div className="w-px flex-grow border-l-2 border-dashed border-border" />
+                        )}
+                    </div>
+
+                    {/* Content Column */}
+                    <div className="flex-1 pt-0 pb-10">
+                         <button 
+                            onClick={() => setActiveSubStepIndex(index)}
+                            className="w-full text-left p-6 rounded-xl border bg-background hover:bg-muted/50 transition-colors flex items-center justify-between gap-4 shadow-sm -mt-1"
+                        >
+                            <div>
+                                <h3 className="font-semibold text-lg">{subStep.title}</h3>
+                                <p className="text-sm text-muted-foreground mt-1">Section {index + 1} of {step.subSteps.length}</p>
+                            </div>
+                            <BookOpen className="h-5 w-5 text-muted-foreground" />
+                        </button>
+                    </div>
+                </div>
             ))}
-        </Accordion>
+
+            <Dialog open={activeSubStepIndex !== null} onOpenChange={(isOpen) => !isOpen && setActiveSubStepIndex(null)}>
+                {activeSubStep && (
+                    <DialogContent hideClose className="max-w-full w-full h-screen flex flex-col p-0 gap-0 data-[state=open]:animate-none data-[state=closed]:animate-none !rounded-none">
+                        <div className="p-4 border-b flex items-center justify-between shrink-0">
+                            <div className="flex items-center gap-3">
+                                <BookOpen className="h-5 w-5 text-muted-foreground" />
+                                <h2 className="text-xl font-semibold">{activeSubStep.title}</h2>
+                            </div>
+                            <Button variant="ghost" size="icon" onClick={() => setActiveSubStepIndex(null)}>
+                                <X className="h-5 w-5" />
+                            </Button>
+                        </div>
+                        <div className="flex-1 grid md:grid-cols-2 min-h-0">
+                           <div className="bg-background overflow-y-auto min-w-0 hide-scrollbar">
+                                <div
+                                    className="prose prose-lg dark:prose-invert max-w-none p-12 md:p-16"
+                                    dangerouslySetInnerHTML={{ __html: activeSubStep.content }}
+                                />
+                            </div>
+                            <div className="bg-muted/30 border-l overflow-y-auto min-w-0 hide-scrollbar">
+                                <ExerciseDisplay subStep={activeSubStep} />
+                            </div>
+                        </div>
+                        <div className="p-4 border-t flex justify-between items-center">
+                            <Button variant="outline" onClick={handlePrevious} disabled={activeSubStepIndex === 0}>
+                                Previous
+                            </Button>
+                            {activeSubStepIndex === step.subSteps.length - 1 ? (
+                                <Button onClick={() => setActiveSubStepIndex(null)} size="lg">
+                                    Return to Step
+                                </Button>
+                            ) : (
+                                <Button onClick={handleNext}>
+                                    Next
+                                </Button>
+                            )}
+                        </div>
+                    </DialogContent>
+                )}
+            </Dialog>
+        </div>
     );
 }
-
