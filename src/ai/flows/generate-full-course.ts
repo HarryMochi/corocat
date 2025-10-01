@@ -14,8 +14,8 @@ import { googleAI } from '@genkit-ai/googleai';
 
 const GenerateFullCourseInputSchema = z.object({
   topic: z.string().describe('The topic of the course.'),
-  knowledgeLevel: z.string().describe("The user's current knowledge level (e.g., 'Beginner', 'Intermediate')."),
-  masteryLevel: z.string().describe("The desired depth of the course (e.g., 'Quick Overview', 'Normal Path', 'Long Mastery')."),
+  knowledgeLevel: z.string().describe("The user\'s current knowledge level (e.g., \'Beginner\', \'Intermediate\')."),
+  masteryLevel: z.string().describe("The desired depth of the course (e.g., \'Quick Overview\', \'Normal Path\', \'Long Mastery\')."),
   additionalComments: z.string().optional().describe('Any additional instructions or comments from the user (e.g., "focus on practical examples").'),
 });
 export type GenerateFullCourseInput = z.infer<typeof GenerateFullCourseInputSchema>;
@@ -25,19 +25,32 @@ const ExternalLinkSchema = z.object({
     url: z.string().url().describe('The full URL to the external resource.'),
 });
 
-const ContentBlockSchema = z.object({
-  type: z.enum(['coreConcept', 'practicalExample', 'analogy', 'keyTerm']).describe('The type of content block.'),
-  content: z.string().describe('The Markdown content for this block. For a `keyTerm`, this should be in the format "Term: Definition".'),
+const ExerciseSchema = z.object({
+    multipleChoice: z.object({
+        question: z.string().describe('The multiple-choice question.'),
+        options: z.array(z.string()).describe('An array of 3-4 possible answers.'),
+        correctAnswerIndex: z.number().describe('The index of the correct answer in the options array.'),
+    }).describe('A multiple-choice question to test understanding.'),
+    trueOrFalse: z.object({
+        question: z.string().describe('The true or false statement.'),
+        correctAnswer: z.boolean().describe('Whether the statement is true or false.'),
+    }).describe('A true or false question to test a key concept.'),
+});
+
+const SubStepSchema = z.object({
+  title: z.string().describe('A short title for this sub-step (for the clickable card).'),
+  content: z.string().describe('Rich HTML content for the lesson, including various tags for formatting.'),
+  exercise: ExerciseSchema.describe('A two-part exercise to test the user on the lesson content.'),
 });
 
 const GenerateFullCourseOutputSchema = z.object({
   course: z.array(z.object({
     step: z.number().describe('The step number.'),
     title: z.string().describe('The title of the step.'),
-    shortTitle: z.string().describe('A very short, 1-2 word title for the step. This will be displayed on the course path.'),
+    shortTitle: z.string().describe('A very short, 1-2 word title for the step.'),
     description: z.string().describe('A brief description of what the step covers.'),
-    contentBlocks: z.array(ContentBlockSchema).describe('An array of different content blocks that make up the step. You must generate a variety of blocks to make the content engaging.'),
-    funFact: z.string().describe("A surprising or interesting fun fact related to the step's topic.").optional(),
+    subSteps: z.array(SubStepSchema).describe('An array of 5-7 sub-steps, each with rich content and a two-part exercise.'),
+    funFact: z.string().describe("A surprising or interesting fun fact related to the step\'s topic.").optional(),
     externalLinks: z.array(ExternalLinkSchema).describe('An array of 2-3 high-quality external links for further reading.').optional(),
   })).describe('A structured course with the specified number of steps, including all content.'),
 });
@@ -51,46 +64,7 @@ const prompt = ai.definePrompt({
   name: 'generateFullCoursePrompt',
   input: {schema: GenerateFullCourseInputSchema},
   output: {schema: GenerateFullCourseOutputSchema},
-  prompt: `You are an AI course generator and expert educator. Your primary task is to create a complete, structured, and personalized course based on a topic and user preferences.
-
-    The MOST IMPORTANT requirement is to generate a course with an appropriate number of steps based on the user's desired mastery level.
-    - User's Desired Mastery Level: {{{masteryLevel}}}
-    - If 'Quick Overview', generate about 5-7 steps.
-    - If 'Normal Path', generate about 12-15 steps.
-    - If 'Long Mastery', generate about 20-25 steps.
-    The exact number is less important than providing the right level of detail for the chosen path.
-
-    The second MOST IMPORTANT requirement is to tailor the course to the user's needs.
-    - User's Current Knowledge: {{{knowledgeLevel}}}. Adjust the starting point and complexity accordingly. If they are a beginner, start with the absolute basics. If they are intermediate, you can skip introductory concepts.
-    - User's Special Requests: {{{additionalComments}}}. Pay close attention to these instructions. For example, if they ask for "many practical examples," ensure the content is rich with them. If they ask to "explain it very easy," use simple language.
-
-    The third MOST IMPORTANT requirement is the QUALITY and STRUCTURE of the content for each step.
-    - Instead of a single "content" field, each step MUST have a 'contentBlocks' array.
-    - This array must contain a variety of block types to make the lesson engaging and multi-faceted. DO NOT just use one type of block. Mix and match 'coreConcept', 'practicalExample', 'analogy', and 'keyTerm' blocks.
-    - It is absolutely forbidden to generate short, one-sentence, or empty content for any block. Each block must be substantial and well-explained.
-    - For 'practicalExample' blocks, provide code snippets (using Markdown for code fencing) or detailed real-world scenarios.
-    - For 'keyTerm' blocks, use the format "Term: Definition".
-    - All content within blocks MUST be well-organized. Use Markdown to structure the text with headings (#, ##), subheadings, bullet points (*), and bold text (**text**) to create a clear hierarchy and improve readability.
-
-    The fourth MOST IMPORTANT requirement is to manage content length.
-    - The TOTAL content for a single step (across all its content blocks) should be between 300 and 500 words. This is crucial for keeping the course generation fast and the content digestible. Do not write excessively long steps.
-
-    For each and every step, you must generate:
-    1.  A step number.
-    2.  A clear and concise title.
-    3.  A very short, 1-2 word title for display on the course path map.
-    4.  A brief one-sentence description of the step's topic.
-    5.  A 'contentBlocks' array with detailed, well-structured content using a variety of block types. DO NOT use emojis.
-    6.  A surprising or interesting "Fun Fact" related to the step's content.
-    7.  An array of 2-3 high-quality, real, and relevant external links for further reading.
-    
-    DO NOT generate a quiz. The quiz will be generated later.
-
-    Your goal is to take a user from their current knowledge level to their desired level of mastery for the given topic.
-
-    Topic: {{{topic}}}
-
-    Generate a complete, high-quality, personalized course. The output must be a single JSON object.`,
+  prompt: `You are an expert AI course creator. Your task is to generate a complete, personalized course with rich, engaging content and comprehensive exercises.\n\n    The MOST IMPORTANT requirement is to generate a course with an appropriate number of steps based on the user\'s desired mastery level.\n    - User\'s Desired Mastery Level: {{{masteryLevel}}}\n    - \'Quick Overview\': 5-7 steps.\n    - \'Normal Path\': 12-15 steps.\n    - \'Long Mastery\': 20-25 steps.\n\n    The second MOST IMPORTANT requirement is the STRUCTURE and QUALITY of each sub-step.\n    - Each step MUST have a \'subSteps\' array containing 5-7 sub-steps.\n    - For EACH sub-step, you MUST generate:\n\n        1.  A short \'title\' for the clickable card.\n\n        2.  Rich HTML \'content\' for the lesson. This content should be concise and to the point, while still being visually engaging and well-structured. It MUST include:\n            - A main title using an <h2> tag.\n            - Sub-headings using <h3> tags to break up content.\n            - Paragraphs using <p> tags.\n            - Bullet points using <ul> and <li> for lists.\n            - Bolded keywords using <strong> tags.\n            - Highlighted text using <mark> tags for important definitions or concepts.\n            - At least one code block using <pre><code>...</code></pre> to showcase examples.\n            - DO NOT output a single wall of text. The content should be broken up and easy to read.\n\n        3.  A two-part \'exercise\' object to test the user\'s knowledge on the \'content\' you just generated. It MUST contain:\n            a.  \'multipleChoice\': A question with 3-4 options and the correct answer index.\n            b.  \'trueOrFalse\': A statement that is either true or false, with the correct boolean answer.\n\n    For each parent step, you must also generate:\n    - A step number, title, shortTitle, description, an optional funFact, and 2-3 externalLinks.\n\n    Pay close attention to user preferences:\n    - User\'s Current Knowledge: {{{knowledgeLevel}}}\n    - User\'s Special Requests: {{{additionalComments}}}\n\n    Topic: {{{topic}}}\n\n    Generate a complete, high-quality, personalized course. The output must be a single JSON object.`,
 });
 
 const generateFullCourseFlow = ai.defineFlow(
@@ -106,8 +80,7 @@ const generateFullCourseFlow = ai.defineFlow(
         throw new Error(`AI failed to generate any steps for this topic. Please try again.`);
     }
 
-    // Filter out incomplete steps to prevent schema validation errors downstream.
-    const completeSteps = output.course.filter(step => step.description && step.contentBlocks && step.contentBlocks.length > 0);
+    const completeSteps = output.course.filter(step => step.description && step.subSteps && step.subSteps.length > 0);
 
     if (completeSteps.length === 0) {
       throw new Error('AI failed to generate any complete steps. Please try again.');

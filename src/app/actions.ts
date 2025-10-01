@@ -6,7 +6,11 @@ import { askStepQuestion, type AskStepQuestionInput, type AskStepQuestionOutput 
 import { assistWithNotes, type AssistWithNotesInput, type AssistWithNotesOutput } from '@/ai/flows/assist-with-notes';
 import { validateMarketplaceUpload, type ValidateMarketplaceUploadInput, type ValidateMarketplaceUploadOutput } from '@/ai/flows/validate-marketplace-upload';
 import { generateStepQuiz, type GenerateStepQuizInput, type GenerateStepQuizOutput } from '@/ai/flows/generate-step-quiz';
+import { promises as fs } from 'fs';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 
+const execAsync = promisify(exec);
 
 export async function generateCourseAction(input: GenerateFullCourseInput): Promise<GenerateFullCourseOutput> {
     try {
@@ -70,5 +74,21 @@ export async function generateQuizAction(input: GenerateStepQuizInput): Promise<
             throw new Error(error.message);
         }
         throw new Error("An unknown error occurred while generating the quiz.");
+    }
+}
+
+export async function executeCodeAction(code: string): Promise<{ output: string, error?: string }> {
+    const filePath = '/tmp/code.js';
+    try {
+        await fs.writeFile(filePath, code);
+        const { stdout, stderr } = await execAsync(`node ${filePath}`);
+        if (stderr) {
+            return { output: '', error: stderr };
+        }
+        return { output: stdout };
+    } catch (error: any) {
+        return { output: '', error: error.message };
+    } finally {
+        await fs.unlink(filePath);
     }
 }

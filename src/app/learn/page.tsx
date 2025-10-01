@@ -83,7 +83,8 @@ export default function LearnPage() {
             stepNumber: step.step,
             title: step.title,
             shortTitle: step.shortTitle,
-            contentBlocks: step.contentBlocks,
+            description: step.description,
+            subSteps: step.subSteps,
             completed: false,
         };
 
@@ -171,7 +172,7 @@ export default function LearnPage() {
 
   const handleGenerateQuiz = async (course: Course, step: Step): Promise<GenerateStepQuizOutput> => {
     try {
-        const stepContentString = step.contentBlocks?.map(b => `### ${b.type}\n${b.content}`).join('\n\n') || '';
+        const stepContentString = step.subSteps?.map(s => `### ${s.title}\n${s.content}`).join('\n\n') || '';
 
         const result = await generateQuizAction({
             topic: course.topic,
@@ -224,7 +225,7 @@ export default function LearnPage() {
         // Find the current step to create a summarized content string
         const activeCourseForQuestion = courses.find(c => c.topic === input.topic);
         const activeStepForQuestion = activeCourseForQuestion?.steps.find(s => s.title === input.stepTitle);
-        const contentString = activeStepForQuestion?.contentBlocks?.map(b => `### ${b.type}\n${b.content}`).join('\n\n') || '';
+        const contentString = activeStepForQuestion?.subSteps?.map(s => `### ${s.title}\n${s.content}`).join('\n\n') || '';
 
         return await askQuestionAction({...input, stepContent: contentString });
     } catch (error) {

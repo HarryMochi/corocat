@@ -27,17 +27,24 @@ export interface ExternalLink {
     url: string;
 }
 
-export interface ContentBlock {
-  type: 'coreConcept' | 'practicalExample' | 'analogy' | 'keyTerm';
+export interface Exercise {
+  description: string;
+  startingCode?: string;
+}
+
+export interface SubStep {
+  title: string;
   content: string;
+  exercise: Exercise;
 }
 
 export interface Step {
   stepNumber: number;
   title: string;
   shortTitle: string;
-  contentBlocks?: ContentBlock[];
-  content?: string; // Keep for backward compatibility, but favor contentBlocks
+  description: string;
+  subSteps?: SubStep[];
+  content?: string; // Keep for backward compatibility
   quiz?: QuizSet;
   funFact?: string;
   externalLinks?: ExternalLink[];

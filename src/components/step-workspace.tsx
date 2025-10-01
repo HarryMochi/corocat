@@ -1,24 +1,19 @@
 
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import type { Course, Step, QuizSet } from "@/lib/types";
+import { useState, useRef, useEffect } from "react";
+import type { Course, Step } from "@/lib/types";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "./ui/dialog";
-import { X, Bot, Notebook, BookOpen, Loader2, Send, User, CheckCircle, Puzzle } from "lucide-react";
+import { X, Bot, BookOpen, Loader2, Send, User, CheckCircle } from "lucide-react";
 import { StepContent } from "./step-content";
 import { StepExtras } from "./step-extras";
-import { StepQuiz } from "./step-quiz";
 import { Checkbox } from "./ui/checkbox";
 import { Label } from "./ui/label";
 import { ScrollArea } from "./ui/scroll-area";
 import { Input } from "./ui/input";
 import type { AskStepQuestionInput, AskStepQuestionOutput } from "@/ai/flows/ask-step-question";
-import type { AssistWithNotesOutput } from "@/ai/flows/assist-with-notes";
-import NotesDisplay from "./notes-display";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "./ui/separator";
-import type { GenerateStepQuizOutput } from "@/ai/flows/generate-step-quiz";
 
 interface AiChatProps {
     course: Course;
@@ -71,7 +66,7 @@ function AiChat({ course, step, history, setHistory, onAskQuestion }: AiChatProp
         setIsAsking(true);
 
         try {
-            const stepContentString = step.contentBlocks?.map(b => `Type: ${b.type}\nContent: ${b.content}`).join('\n---\n') || '';
+            const stepContentString = step.subSteps?.map(s => `Title: ${s.title}\nContent: ${s.content}`).join('\n---\n') || '';
 
             const result = await onAskQuestion({
                 topic: course.topic,
@@ -169,10 +164,6 @@ interface StepWorkspaceProps {
     onClose: () => void;
     onUpdateStep: (data: Partial<Step>) => void;
     onAskQuestion: (input: AskStepQuestionInput) => Promise<AskStepQuestionOutput>;
-    onUpdateNotes: (notes: string) => void;
-    onAssistWithNotes: (course: Course, notes: string, request: string) => Promise<AssistWithNotesOutput>;
-    onGenerateQuiz: (course: Course, step: Step) => Promise<GenerateStepQuizOutput>;
-    onQuizRestart: () => void;
 }
 
 
@@ -183,19 +174,12 @@ export function StepWorkspace({
     setChatHistory, 
     onClose, 
     onUpdateStep, 
-    onAskQuestion, 
-    onUpdateNotes, 
-    onAssistWithNotes,
-    onGenerateQuiz,
-    onQuizRestart
+    onAskQuestion,
 }: StepWorkspaceProps) {
   
     const [step, setStep] = useState(initialStep);
 
     useEffect(() => {
-        // When the course data changes (e.g., after a quiz is generated or restarted),
-        // find the updated version of the current step from the course prop
-        // and update the local state.
         const updatedStep = course.steps.find(s => s.stepNumber === initialStep.stepNumber);
         if (updatedStep) {
             setStep(updatedStep);
@@ -207,14 +191,6 @@ export function StepWorkspace({
         setStep(newStepState);
         onUpdateStep({ completed: checked });
     };
-
-    const handleQuizUpdate = (newQuizData: QuizSet) => {
-        onUpdateStep({ quiz: newQuizData });
-    };
-
-    const handleGenerateQuiz = useCallback(async () => {
-        await onGenerateQuiz(course, step);
-    }, [course, step, onGenerateQuiz]);
     
     const handleFinishStep = () => {
         if (!step.completed) {
@@ -246,56 +222,21 @@ export function StepWorkspace({
                 </DialogHeader>
                 
                 <div className="flex-1 min-h-0">
-                     <Tabs defaultValue="content" className="flex flex-col min-h-0 h-full">
-                        <div className="px-4 border-b flex items-center justify-center bg-muted/50">
-                            <TabsList className="bg-transparent">
-                                <TabsTrigger value="content"><BookOpen className="mr-2 h-4 w-4"/>Content</TabsTrigger>
-                                <TabsTrigger value="notes"><Notebook className="mr-2 h-4 w-4"/>Notes</TabsTrigger>
-                                <TabsTrigger value="quiz"><Puzzle className="mr-2 h-4 w-4"/>Mini Check</TabsTrigger>
-                            </TabsList>
+                    <ScrollArea className="h-full">
+                        <div className="p-6 md:p-8 space-y-8">
+                            <StepContent step={step} />
+                            <div className="px-6">
+                                <StepExtras step={step} onAskAiClick={() => {}} />
+                            </div>
+                            <Separator />
+                            <div className="flex justify-center py-4">
+                                <Button size="lg" onClick={handleFinishStep}>
+                                    <CheckCircle className="mr-2 h-5 w-5" />
+                                    Finish Step
+                                </Button>
+                            </div>
                         </div>
-
-                        <TabsContent value="content" className="flex-1 min-h-0">
-                            <ScrollArea className="h-full">
-                                <div className="p-6 md:p-8 space-y-8">
-                                    <StepContent contentBlocks={step.contentBlocks} />
-                                    <div className="px-6">
-                                        <StepExtras step={step} onAskAiClick={() => {}} />
-                                    </div>
-                                    <Separator />
-                                    <div className="flex justify-center py-4">
-                                        <Button size="lg" onClick={handleFinishStep}>
-                                            <CheckCircle className="mr-2 h-5 w-5" />
-                                            Finish Step
-                                        </Button>
-                                    </div>
-                                </div>
-                            </ScrollArea>
-                        </TabsContent>
-
-                        <TabsContent value="notes" className="flex-1 min-h-0">
-                            <NotesDisplay 
-                                course={course}
-                                notes={course.notes}
-                                onUpdateNotes={onUpdateNotes}
-                                onAssistWithNotes={onAssistWithNotes}
-                            />
-                        </TabsContent>
-
-                        <TabsContent value="quiz" className="flex-1 min-h-0">
-                                <ScrollArea className="h-full">
-                                    <div className="p-6 md:p-8">
-                                    <StepQuiz 
-                                        quizSet={step.quiz} 
-                                        onQuizUpdate={handleQuizUpdate}
-                                        onGenerateQuiz={handleGenerateQuiz}
-                                        onQuizRestart={onQuizRestart}
-                                        key={step.stepNumber} 
-                                    />
-                                    </div>
-                                </ScrollArea>
-                        </TabsContent>
-                    </Tabs>
+                    </ScrollArea>
                 </div>
                  <Dialog>
                     <DialogTrigger asChild>
