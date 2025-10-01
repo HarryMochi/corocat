@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -78,7 +77,8 @@ body {
     @apply font-headline;
   }
   .prose pre {
-    @apply bg-[--tw-prose-pre-bg] text-[--tw-prose-pre-code] rounded-lg border whitespace-pre-wrap max-h-[650px] overflow-auto;
+    @apply text-[--tw-prose-pre-code] rounded-lg border whitespace-pre-wrap max-h-[650px] overflow-auto;
+    background-color: beige !important;
   }
   .prose code {
     @apply bg-primary/10 text-[--tw-prose-code] rounded px-1.5 py-1 font-medium;
