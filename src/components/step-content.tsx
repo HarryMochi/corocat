@@ -190,7 +190,7 @@ export function StepContent({ step }: StepContentProps) {
                                 />
                             </div>
                             <div className="bg-muted/30 border-l overflow-y-auto min-w-0 hide-scrollbar">
-                                <ExerciseDisplay subStep={activeSubStep} />
+                                <ExerciseDisplay key={activeSubStepIndex} subStep={activeSubStep} />
                             </div>
                         </div>
                         <div className="p-4 border-t flex justify-between items-center">
