@@ -47,7 +47,7 @@ export async function getCoursesForUser(userId: string): Promise<Course[]> {
   try {
     const q = query(coursesCollection, where('userId', '==', userId), orderBy('createdAt', 'desc'));
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
+    return querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Course));
   } catch (error) {
     await handleFirestoreError(error, refPath, 'list');
     throw error;
@@ -217,6 +217,10 @@ export async function addCourseFromMarketplace(course: MarketplaceCourse, userId
         createdAt: new Date().toISOString(),
         notes: "", // Start with fresh notes
     };
+
+    // Remove the original course ID to ensure it's a new, independent course
+    delete newCourseData.originalCourseId;
+    delete newCourseData.marketplaceId;
 
     return addCourse(newCourseData);
 }
