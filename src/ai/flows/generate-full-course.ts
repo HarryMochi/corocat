@@ -9,7 +9,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
+import { openAI } from 'genkitx-openai';
 
 const GenerateFullCourseInputSchema = z.object({
   topic: z.string().describe('The topic of the course.'),
@@ -76,7 +76,7 @@ const generateFullCourseFlow = ai.defineFlow(
     outputSchema: GenerateFullCourseOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input, { model: googleAI.model('gemini-2.5-flash') });
+    const {output} = await prompt(input, { model: openAI.model('mistralai/mistral-7b-instruct:free') });
 
     if (!output || !output.course || output.course.length === 0) {
         throw new Error(`AI failed to generate any steps for this topic. Please try again.`);
