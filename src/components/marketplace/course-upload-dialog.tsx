@@ -13,17 +13,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Upload, Loader2 } from "lucide-react";
+import { Upload, Loader2, UploadCloud } from "lucide-react";
 import type { Course } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface CourseUploadDialogProps {
   userCourses: Course[];
-  category: string;
   onUpload: (course: Course) => Promise<boolean>;
 }
 
-export function CourseUploadDialog({ userCourses, category, onUpload }: CourseUploadDialogProps) {
+export function CourseUploadDialog({ userCourses, onUpload }: CourseUploadDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -43,15 +42,15 @@ export function CourseUploadDialog({ userCourses, category, onUpload }: CourseUp
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button>
-          <Upload className="mr-2 h-4 w-4" />
+          <UploadCloud className="mr-2 h-4 w-4" />
           Upload a Course
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Upload to '{category}'</DialogTitle>
+          <DialogTitle>Upload a Course to the Marketplace</DialogTitle>
           <DialogDescription>
-            Select one of your existing courses to share with the community.
+            Select one of your existing courses to share with the community. Our AI will automatically categorize it.
           </DialogDescription>
         </DialogHeader>
         
@@ -76,7 +75,7 @@ export function CourseUploadDialog({ userCourses, category, onUpload }: CourseUp
                 </button>
             )) : (
                 <div className="text-center text-muted-foreground p-8">
-                    You haven't created any courses yet.
+                    You haven't created any courses yet. Go to the "Learn" tab to create your first course!
                 </div>
             )}
             </div>
@@ -92,7 +91,7 @@ export function CourseUploadDialog({ userCourses, category, onUpload }: CourseUp
             ) : (
               <Upload className="mr-2 h-4 w-4" />
             )}
-            {isUploading ? "Validating..." : "Upload"}
+            {isUploading ? "Uploading..." : "Upload"}
           </Button>
         </DialogFooter>
       </DialogContent>

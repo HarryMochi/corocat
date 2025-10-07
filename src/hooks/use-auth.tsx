@@ -2,7 +2,8 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, User, GoogleAuthProvider, signInWithPopup, sendEmailVerification, sendPasswordResetEmail, updateProfile } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 import { usePathname, useRouter } from 'next/navigation';
 
 interface AuthContextType {
@@ -25,8 +26,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+      if (currentUser) {
+        // Sync user profile with Firestore
+        const userRef = doc(db, 'users', currentUser.uid);
+        await setDoc(userRef, {
+          displayName: currentUser.displayName,
+          email: currentUser.email,
+          photoURL: currentUser.photoURL,
+          uid: currentUser.uid,
+          lastLogin: new Date().toISOString(),
+        }, { merge: true });
+      }
       setLoading(false);
     });
     return () => unsubscribe();
@@ -41,11 +53,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signup = async (email: string, password: string) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     if (userCredential.user) {
-        // Set a default display name from the email
         const displayName = email.split('@')[0];
         await updateProfile(userCredential.user, { displayName });
         
-        // Reload user to get the updated profile
+        const userRef = doc(db, 'users', userCredential.user.uid);
+        await setDoc(userRef, {
+          displayName: displayName,
+          email: userCredential.user.email,
+          uid: userCredential.user.uid,
+          creationTime: new Date().toISOString(),
+        }, { merge: true });
+
         await userCredential.user.reload();
         setUser(auth.currentUser);
 

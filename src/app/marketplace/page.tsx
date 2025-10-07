@@ -7,9 +7,13 @@ import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import LearnLayout from '@/components/learn-layout';
 import HistorySidebar from '@/components/history-sidebar';
-import { getCoursesForUser, deleteCourse, getAllMarketplaceCourses } from '@/lib/firestore';
+import { getCoursesForUser, deleteCourse, getAllMarketplaceCourses, addCourseToMarketplace } from '@/lib/firestore';
 import type { Course } from '@/lib/types';
-import MarketplaceCategoryGrid, { marketplaceCategories } from '@/components/marketplace/marketplace-category-grid';
+import MarketplaceCategoryGrid from '@/components/marketplace/marketplace-category-grid';
+import { marketplaceCategories } from '@/lib/marketplace-categories';
+import { CourseUploadDialog } from '@/components/marketplace/course-upload-dialog';
+import { useToast } from '@/hooks/use-toast';
+import { validateMarketplaceUploadAction } from '@/app/actions';
 
 export default function MarketplacePage() {
     const { user, loading, logout } = useAuth();
@@ -17,6 +21,7 @@ export default function MarketplacePage() {
     const [courses, setCourses] = useState<Course[]>([]);
     const [isClient, setIsClient] = useState(false);
     const [marketplaceCourseCounts, setMarketplaceCourseCounts] = useState<Record<string, number>>({});
+    const { toast } = useToast();
 
     useEffect(() => {
         setIsClient(true);
@@ -54,13 +59,10 @@ export default function MarketplacePage() {
     const handleDeleteCourse = async (courseId: string) => {
         const originalCourses = courses;
         setCourses(prev => prev.filter(c => c.id !== courseId));
-        // No active course logic needed here
-    
         try {
             await deleteCourse(courseId);
         } catch (error) {
             console.error("Error deleting course from DB:", error);
-            // Revert UI on failure
             setCourses(originalCourses);
         }
     };
@@ -68,6 +70,43 @@ export default function MarketplacePage() {
     const handleSelectCourse = (id: string) => {
         sessionStorage.setItem('selectedCourseId', id);
         router.push('/learn');
+    };
+
+    const handleUploadCourse = async (course: Course) => {
+        if (!user) return false;
+
+        const validationResult = await validateMarketplaceUploadAction({
+            courseTopic: course.topic,
+            courseOutline: course.outline,
+        });
+
+        if (!validationResult.isAppropriate || !validationResult.category) {
+            toast({
+                variant: "destructive",
+                title: "Upload Failed",
+                description: validationResult.reason || "Our AI couldn't determine a suitable category for this course.",
+            });
+            return false;
+        }
+
+        try {
+            const courseToUpload = { ...course, userName: user.displayName || course.userName };
+            await addCourseToMarketplace(courseToUpload, validationResult.category);
+            toast({
+                title: "Upload Successful!",
+                description: `"${course.topic}" has been added to the marketplace under the "${validationResult.category}" category.`,
+            });
+            fetchData();
+            return true;
+        } catch (error) {
+            console.error("Error uploading course:", error);
+            toast({
+                variant: "destructive",
+                title: "Upload Error",
+                description: "Could not upload the course. Please try again."
+            });
+            return false;
+        }
     };
 
     if (loading || !isClient || !user || !user.emailVerified) {
@@ -82,7 +121,7 @@ export default function MarketplacePage() {
         <HistorySidebar
           user={user}
           courses={courses}
-          activeCourseId={null} // No active course on this page
+          activeCourseId={null}
           onSelectCourse={handleSelectCourse}
           onCreateNew={() => router.push('/learn')}
           onDeleteCourse={handleDeleteCourse}
@@ -92,9 +131,12 @@ export default function MarketplacePage() {
 
     const mainContent = (
         <div className="h-full p-4 md:p-8">
-            <header className="mb-8">
-                <h1 className="font-headline text-3xl md:text-4xl font-bold">Marketplace</h1>
-                <p className="text-muted-foreground">Explore courses created by the community.</p>
+            <header className="flex justify-between items-center mb-8">
+                <div>
+                    <h1 className="font-headline text-3xl md:text-4xl font-bold">Marketplace</h1>
+                    <p className="text-muted-foreground">Explore courses created by the community.</p>
+                </div>
+                <CourseUploadDialog userCourses={courses} onUpload={handleUploadCourse} />
             </header>
             <MarketplaceCategoryGrid categories={marketplaceCategories} courseCounts={marketplaceCourseCounts} />
         </div>

@@ -8,14 +8,12 @@ import { Loader2, ArrowLeft, Search } from 'lucide-react';
 import Link from 'next/link';
 import LearnLayout from '@/components/learn-layout';
 import HistorySidebar from '@/components/history-sidebar';
-import { getCoursesForUser, getMarketplaceCourses, deleteCourse, addCourseToMarketplace, toggleLikeOnMarketplaceCourse, addCourseFromMarketplace } from '@/lib/firestore';
+import { getCoursesForUser, getMarketplaceCourses, deleteCourse, toggleLikeOnMarketplaceCourse, addCourseFromMarketplace } from '@/lib/firestore';
 import type { Course, MarketplaceCourse } from '@/lib/types';
-import { marketplaceCategories } from '@/components/marketplace/marketplace-category-grid';
+import { marketplaceCategories } from '@/lib/marketplace-categories';
 import { Button } from '@/components/ui/button';
-import { CourseUploadDialog } from '@/components/marketplace/course-upload-dialog';
 import { MarketplaceCourseCard } from '@/components/marketplace/marketplace-course-card';
 import { useToast } from '@/hooks/use-toast';
-import { validateMarketplaceUploadAction } from '@/app/actions';
 import { Input } from '@/components/ui/input';
 
 export default function MarketplaceCategoryPage() {
@@ -97,51 +95,7 @@ export default function MarketplaceCategoryPage() {
         }
     };
     
-    const handleUploadCourse = async (course: Course) => {
-        if (!user) return false;
-        
-        const validationResult = await validateMarketplaceUploadAction({
-            courseTopic: course.topic,
-            courseOutline: course.outline,
-            targetCategory: category,
-        });
-
-        if (!validationResult.isAppropriate) {
-            toast({
-                variant: "destructive",
-                title: "Upload Failed",
-                description: validationResult.reason,
-            });
-            return false;
-        }
-
-        try {
-            // Ensure the user's current display name is used for the upload.
-            const courseToUpload = {
-                ...course,
-                userName: user.displayName || course.userName,
-            };
-
-            await addCourseToMarketplace(courseToUpload, category);
-            toast({
-                title: "Upload Successful!",
-                description: `"${course.topic}" has been added to the marketplace.`,
-            });
-            fetchData(); // Refresh marketplace courses
-            return true;
-        } catch (error) {
-            console.error("Error uploading course:", error);
-            toast({
-                variant: "destructive",
-                title: "Upload Error",
-                description: "Could not upload the course. Please try again."
-            });
-            return false;
-        }
-    };
-
     const handleLikeToggle = async (courseId: string, userId: string) => {
-        // Optimistic UI update
         const originalCourses = [...marketplaceCourses];
         setMarketplaceCourses(prevCourses => 
             prevCourses.map(course => {
@@ -162,7 +116,7 @@ export default function MarketplaceCategoryPage() {
         } catch (error) {
             console.error("Error toggling like:", error);
             toast({ variant: 'destructive', title: "Error", description: "Could not update like status."});
-            setMarketplaceCourses(originalCourses); // Revert on error
+            setMarketplaceCourses(originalCourses);
         }
     };
 
@@ -171,7 +125,7 @@ export default function MarketplaceCategoryPage() {
             throw new Error("User not authenticated");
         }
         await addCourseFromMarketplace(course, user.uid, user.displayName || "You");
-        await fetchData(); // Re-fetch data to ensure UI is in sync and avoid duplicates
+        await fetchData();
     };
 
     const handleSelectCourse = (id: string) => {
@@ -213,20 +167,13 @@ export default function MarketplaceCategoryPage() {
                         <h1 className="font-headline text-3xl md:text-4xl font-bold capitalize">{categoryInfo?.name || category}</h1>
                         <p className="text-muted-foreground max-w-xl">{categoryInfo?.description}</p>
                     </div>
-                    <div className='flex flex-col sm:flex-row gap-2 items-center w-full md:w-auto'>
-                        <div className="relative flex-1 md:flex-none w-full sm:w-auto">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                                placeholder="Search courses..."
-                                className="pl-10 w-full md:w-64"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                        </div>
-                        <CourseUploadDialog 
-                            userCourses={userCourses} 
-                            onUpload={handleUploadCourse} 
-                            category={category}
+                    <div className='relative flex-1 md:flex-none w-full sm:w-auto'>
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                            placeholder="Search courses..."
+                            className="pl-10 w-full md:w-64"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
                 </div>

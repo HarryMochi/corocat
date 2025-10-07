@@ -64,7 +64,7 @@ const evaluateFreeWriteFlow = ai.defineFlow(
   },
   async input => {
     // Use a fast and efficient model for this evaluation task.
-    const {output} = await prompt(input, { model: googleAI.model('gemini-1.5-flash') });
+    const {output} = await prompt(input, { model: googleAI.model('gemini-2.5-flash') });
     return output!;
   }
 );

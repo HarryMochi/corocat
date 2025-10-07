@@ -8,6 +8,7 @@ import { auth } from './firebase';
 
 const coursesCollection = collection(db, 'courses');
 const marketplaceCollection = collection(db, 'marketplaceCourses');
+const usersCollection = collection(db, 'users');
 
 
 async function handleFirestoreError(error: unknown, refPath: string, operation: 'get' | 'list' | 'create' | 'update' | 'delete', resourceData?: any) {
@@ -56,61 +57,34 @@ export async function getCoursesForUser(userId: string): Promise<Course[]> {
 
 
 // Get user data for profile page
-export async function getUserData(userId: string) {
-    const courses = await getCoursesForUser(userId);
-    const userName = courses[0]?.userName;
-    
-    const creationTime = courses.length > 0 
-        ? courses.reduce((oldest, current) => 
-            new Date(current.createdAt) < new Date(oldest.createdAt) ? current : oldest
-          ).createdAt
-        : new Date().toISOString();
-    
-    const displayName = userName || "Anonymous";
-
-    return {
-        displayName,
-        creationTime,
-        courses
-    };
-}
-
-// Get PUBLIC user data for profile page from marketplace courses
-export async function getPublicProfileData(userId: string) {
-    const refPath = `marketplaceCourses`;
-    let userName = "Anonymous";
-    let creationTime = new Date().toISOString();
-
+export async function getUserProfileData(userId: string) {
+    const refPath = `users/${userId}`;
     try {
+        const userDoc = await getDoc(doc(usersCollection, userId));
+        if (!userDoc.exists()) {
+            throw new Error("User not found");
+        }
+        const userData = userDoc.data();
+
+        const userCourses = await getCoursesForUser(userId);
+        
         const q = query(marketplaceCollection, where('userId', '==', userId));
         const querySnapshot = await getDocs(q);
         const publishedCourses = querySnapshot.docs.map(doc => ({ marketplaceId: doc.id, ...doc.data() } as MarketplaceCourse));
 
-        if (publishedCourses.length > 0) {
-            userName = publishedCourses[0].userName || "Anonymous";
-            // Approximate creation time from the oldest published course
-            creationTime = publishedCourses.reduce((oldest, current) => 
-                new Date(current.createdAt) < new Date(oldest.createdAt) ? current : oldest
-            ).createdAt;
-        }
-
-        const coursesCompleted = publishedCourses.filter(c => c.steps.length > 0 && c.steps.every(s => s.completed)).length;
-        
-        // Note: We can only count PUBLISHED courses here. The total created courses is private.
-        // For the profile page, this is an acceptable trade-off to avoid permission errors.
-        const coursesCreated = publishedCourses.length;
+        const activeCourses = userCourses.filter(c => c.steps.length > 0 && c.steps.some(s => !s.completed)).length;
+        const coursesCompleted = userCourses.filter(c => c.steps.length > 0 && c.steps.every(s => s.completed)).length;
         const coursesPublished = publishedCourses.length;
-
+        
         return {
-            displayName: userName,
-            creationTime,
-            coursesCreated,
+            displayName: userData.displayName || 'Anonymous',
+            creationTime: userData.creationTime || new Date().toISOString(),
+            activeCourses,
             coursesCompleted,
-            coursesPublished
+            coursesPublished,
         };
-
     } catch (error) {
-        await handleFirestoreError(error, refPath, 'list');
+        await handleFirestoreError(error, refPath, 'get');
         throw error;
     }
 }
