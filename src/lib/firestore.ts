@@ -66,14 +66,12 @@ export async function getUserProfileData(userId: string) {
         }
         const userData = userDoc.data();
 
-        const userCourses = await getCoursesForUser(userId);
-        
         const q = query(marketplaceCollection, where('userId', '==', userId));
         const querySnapshot = await getDocs(q);
         const publishedCourses = querySnapshot.docs.map(doc => ({ marketplaceId: doc.id, ...doc.data() } as MarketplaceCourse));
 
-        const activeCourses = userCourses.filter(c => c.steps.length > 0 && c.steps.some(s => !s.completed)).length;
-        const coursesCompleted = userCourses.filter(c => c.steps.length > 0 && c.steps.every(s => s.completed)).length;
+        const activeCourses = 0;
+        const coursesCompleted = 0;
         const coursesPublished = publishedCourses.length;
         
         return {
