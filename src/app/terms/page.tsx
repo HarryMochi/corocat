@@ -20,7 +20,7 @@ export default function TermsOfServicePage() {
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl">
             <article className="prose dark:prose-invert max-w-none">
               <h1>Terms of Service</h1>
-              <p className="lead">Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              <p className="lead">Last updated: July 10, 2024</p>
 
               <p>Welcome to Corocat! These terms and conditions outline the rules and regulations for the use of Corocat's Website, located at this domain.</p>
 
@@ -28,13 +28,16 @@ export default function TermsOfServicePage() {
 
               <h2>1. License</h2>
               <p>Unless otherwise stated, Corocat and/or its licensors own the intellectual property rights for all material on Corocat. All intellectual property rights are reserved. You may access this from Corocat for your own personal use subjected to restrictions set in these terms and conditions.</p>
-              <p>You must not:</p>
-              <ul>
-                <li>Republish material from Corocat</li>
-                <li>Sell, rent or sub-license material from Corocat</li>
-                <li>Reproduce, duplicate or copy material from Corocat</li>
-                <li>Redistribute content from Corocat</li>
-              </ul>
+              
+              <div>
+                <p>You must not:</p>
+                <ul>
+                  <li>Republish material from Corocat</li>
+                  <li>Sell, rent or sub-license material from Corocat</li>
+                  <li>Reproduce, duplicate or copy material from Corocat</li>
+                  <li>Redistribute content from Corocat</li>
+                </ul>
+              </div>
 
               <h2>2. User Content</h2>
               <p>In these terms and conditions, “your user content” means material (including without limitation text, images, audio material, video material and audio-visual material) that you submit to this website, for whatever purpose.</p>

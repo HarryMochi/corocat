@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/logo';
-import { BookOpenCheck, Zap, Bot, ArrowRight, Star } from 'lucide-react';
+import { BookOpenCheck, Zap, Bot, ArrowRight, Star, Mail, Users } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import MainLayout from '@/components/main-layout';
 import { Decorations } from '@/components/decorations';
@@ -13,6 +13,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
 // Discord icon component
 const DiscordIcon = ({ className }: { className?: string }) => (
@@ -75,9 +76,25 @@ export default function LandingPage() {
             {!loading && (
               <>
                 {user ? (
-                  <Button asChild>
-                    <Link href="/learn">Go to App</Link>
-                  </Button>
+                  <>
+                    <Button variant="ghost" size="icon">
+                      <Mail className="h-5 w-5" />
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <Users className="h-5 w-5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem>Add Friend</DropdownMenuItem>
+                        <DropdownMenuItem>My Friends</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <Button asChild>
+                      <Link href="/learn">Go to App</Link>
+                    </Button>
+                  </>
                 ) : (
                   <>
                     <Button variant="ghost" asChild>

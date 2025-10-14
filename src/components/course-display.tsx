@@ -9,6 +9,8 @@ import type { AskStepQuestionInput, AskStepQuestionOutput } from '@/ai/flows/ask
 import type { AssistWithNotesOutput } from '@/ai/flows/assist-with-notes';
 import { StepWorkspace, type Message } from './step-workspace';
 import type { GenerateStepQuizOutput } from '@/ai/flows/generate-step-quiz';
+import { Button } from './ui/button';
+import { Share2 } from 'lucide-react';
 
 
 interface CourseDisplayProps {
@@ -22,6 +24,7 @@ interface CourseDisplayProps {
   onGenerateQuiz: (course: Course, step: Step) => Promise<GenerateStepQuizOutput>;
   onQuizRestart: (courseId: string, stepNumber: number) => void;
   onCourseComplete: () => void;
+  onShareCourse: (course: Course) => void;
 }
 
 export default function CourseDisplay({ 
@@ -35,6 +38,7 @@ export default function CourseDisplay({
     onGenerateQuiz,
     onQuizRestart,
     onCourseComplete,
+    onShareCourse
 }: CourseDisplayProps) {
   const [activeStep, setActiveStep] = useState<Step | null>(null);
 
@@ -53,7 +57,13 @@ export default function CourseDisplay({
     <>
       <div className="w-full h-full max-w-4xl mx-auto flex flex-col">
         <header className="p-4 md:p-6 pb-2 md:pb-2">
-          <h1 className="font-headline text-3xl md:text-4xl font-bold mb-2">{course.topic}</h1>
+            <div className="flex justify-between items-start mb-2">
+                <h1 className="font-headline text-3xl md:text-4xl font-bold">{course.topic}</h1>
+                <Button variant="outline" size="sm" onClick={() => onShareCourse(course)}>
+                    <Share2 className="mr-2 h-4 w-4" />
+                    Share
+                </Button>
+            </div>
           <div className="flex items-center gap-4">
             <Progress value={progressPercentage} className="w-full h-3" />
             <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">

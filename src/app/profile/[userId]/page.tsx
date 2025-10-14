@@ -4,11 +4,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { getUserProfileData, getCoursesForUser, deleteCourse } from '@/lib/firestore';
-import { Loader2, ArrowLeft, Share2 } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import LearnLayout from '@/components/learn-layout';
 import HistorySidebar from '@/components/history-sidebar';
 import type { Course } from '@/lib/types';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -38,8 +38,6 @@ export default function ProfilePage() {
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [sidebarCourses, setSidebarCourses] = useState<Course[]>([]);
     const [pageLoading, setPageLoading] = useState(true);
-    const [isCopied, setIsCopied] = useState(false);
-
 
     const fetchProfileData = useCallback(async () => {
         if (!userId) return;
@@ -85,12 +83,6 @@ export default function ProfilePage() {
             console.error("Error deleting course from DB:", error);
             setSidebarCourses(originalCourses);
         }
-    };
-
-    const handleShare = async () => {
-        await navigator.clipboard.writeText(window.location.href);
-        setIsCopied(true);
-        setTimeout(() => setIsCopied(false), 2000); // Reset after 2 seconds
     };
 
     const getInitials = (name: string | null | undefined) => {
@@ -159,10 +151,6 @@ export default function ProfilePage() {
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Back to Marketplace
                     </Link>
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleShare} disabled={isCopied}>
-                    <Share2 className="mr-2 h-4 w-4" />
-                    {isCopied ? 'Copied!' : 'Share'}
                 </Button>
             </header>
             <div className="flex flex-col items-center gap-6">
