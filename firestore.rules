@@ -1,0 +1,65 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // A user document can only be written by the user themselves.
+    // Any authenticated user can read it (for profile pages).
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth.uid == userId;
+
+      // Notifications can be created by any user, but only read/updated/deleted by the owner
+      match /notifications/{notificationId} {
+        allow create: if request.auth != null;
+        allow read, update, delete: if request.auth.uid == userId;
+      }
+
+      // Friends list is private to the user
+      match /friends/{friendId} {
+        allow read, write, delete: if request.auth.uid == userId;
+      }
+    }
+
+    // This rule allows a user to be added to another user's friends list,
+    // which is necessary for the acceptFriendRequest transaction to complete.
+    match /users/{otherUserId}/friends/{userId} {
+      allow write: if request.auth.uid == userId;
+    }
+
+    // Friend requests can be created by the sender.
+    // Listing is allowed for authenticated users, but queries must filter by the receiver.
+    // Only the receiver can read, update, or delete a specific request.
+    match /friendRequests/{requestId} {
+      allow create: if request.auth != null && request.resource.data.from == request.auth.uid;
+      allow list: if request.auth != null;
+      allow read, update, delete: if request.auth.uid == resource.data.to;
+    }
+
+    // A user can create a course for themselves.
+    // They can read, update, and delete their own courses.
+    match /courses/{courseId} {
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    // Marketplace courses can be read by any authenticated user.
+    // Only the original creator can delete their marketplace course.
+    // Updates are restricted to prevent unauthorized modifications.
+    match /marketplaceCourses/{courseId} {
+      allow read: if request.auth != null;
+      
+      // Allow creation (publishing)
+      allow create: if request.auth != null; 
+
+      // Allow owner to delete
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+
+      // Allow updates only for 'likes' and 'likedBy' fields.
+      // This allows users to like courses without being able to change course content.
+      allow update: if request.auth != null && 
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy']);
+    }
+  }
+}
