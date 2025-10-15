@@ -4,12 +4,12 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/logo';
-import { BookOpenCheck, Zap, Bot, ArrowRight, Star, Mail, Users } from 'lucide-react';
+import { BookOpenCheck, Zap, Bot, ArrowRight, Star, Mail, Users, BrainCircuit, Target, BookCopy } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import MainLayout from '@/components/main-layout';
 import { Decorations } from '@/components/decorations';
 import { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
@@ -66,6 +66,24 @@ export default function LandingPage() {
     },
   ];
 
+  const features = [
+      {
+          icon: <BrainCircuit className="h-10 w-10 text-primary" />,
+          title: "AI-Powered Learning Paths",
+          description: "Our AI analyzes any subject and creates a clear, structured curriculum to guide you from beginner to expert. No more guessing what to learn next."
+      },
+      {
+          icon: <Target className="h-10 w-10 text-primary" />,
+          title: "Personalized to Your Goals",
+          description: "Whether you want a quick overview or a deep dive, Corocat tailors the course depth and content to fit your specific learning objectives and timeline."
+      },
+      {
+          icon: <BookCopy className="h-10 w-10 text-primary" />,
+          title: "Interactive & Engaging Content",
+          description: "Learn through a mix of generated text, quizzes, project-based steps, and curated resources, with an AI assistant ready to help you at any point."
+      }
+  ];
+
   return (
     <MainLayout>
       <div className="flex flex-col min-h-screen bg-background">
@@ -111,6 +129,7 @@ export default function LandingPage() {
         </header>
 
         <main className="flex-1">
+            {/* Hero Section */}
             <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 flex flex-col items-center text-center relative z-10">
               <div className="animate-fade-in-up">
                 <div className="min-h-[144px] md:min-h-[192px] flex items-center justify-center">
@@ -134,7 +153,8 @@ export default function LandingPage() {
               </div>
             </section>
 
-             <section className="relative z-10 py-16 sm:py-24">
+            {/* Screenshot Section */}
+            <section className="relative z-10 py-16 sm:py-24">
               <div className="screenshot-container">
                   <div className={cn(
                       "screenshot-image",
@@ -153,7 +173,88 @@ export default function LandingPage() {
               </div>
             </section>
 
-            <section id="features" className="bg-muted py-20 relative z-10">
+            {/* What is Corocat Section */}
+            <section className="py-20 relative z-10 bg-muted">
+                <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="text-center max-w-4xl mx-auto">
+                        <h2 className="text-3xl md:text-4xl font-bold mb-6">The Future of Learning, Personalized.</h2>
+                        <p className="text-lg md:text-xl text-muted-foreground leading-relaxed mb-12">
+                            Corocat is an intelligent learning platform that transforms any subject into a personalized, structured course. Say goodbye to scattered tutorials and hello to a clear path to mastery.
+                        </p>
+                    </div>
+                    <div className="grid md:grid-cols-3 gap-8">
+                        {features.map((feature, index) => (
+                            <Card key={index} className="text-center">
+                                <CardHeader>
+                                    <div className="mx-auto bg-primary/10 p-3 rounded-full w-fit">
+                                        {feature.icon}
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <h3 className="text-xl font-bold mb-2">{feature.title}</h3>
+                                    <p className="text-muted-foreground">
+                                        {feature.description}
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* Inside Corocat Section */}
+            <section className="bg-background py-20 relative z-10">
+              <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">Inside Corocat</h2>
+                <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
+                  Experience a beautifully designed learning environment built for focus and progress
+                </p>
+                <div className="grid md:grid-cols-3 gap-8">
+                  <div className="group">
+                    <div className="relative rounded-xl overflow-hidden shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-2">
+                      <div className="aspect-video bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                        <BookOpenCheck className="h-24 w-24 text-primary/40" />
+                      </div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end">
+                        <div className="p-6 text-white">
+                          <h3 className="font-bold text-lg mb-1">Course Dashboard</h3>
+                          <p className="text-sm text-white/90">Track your learning journey</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="group">
+                    <div className="relative rounded-xl overflow-hidden shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-2">
+                      <div className="aspect-video bg-gradient-to-br from-accent/20 to-accent/5 flex items-center justify-center">
+                        <Bot className="h-24 w-24 text-accent/40" />
+                      </div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end">
+                        <div className="p-6 text-white">
+                          <h3 className="font-bold text-lg mb-1">AI Study Assistant</h3>
+                          <p className="text-sm text-white/90">Get instant help and explanations</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="group">
+                    <div className="relative rounded-xl overflow-hidden shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-2">
+                      <div className="aspect-video bg-gradient-to-br from-secondary/20 to-secondary/5 flex items-center justify-center">
+                        <Zap className="h-24 w-24 text-secondary/40" />
+                      </div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end">
+                        <div className="p-6 text-white">
+                          <h3 className="font-bold text-lg mb-1">Progress Insights</h3>
+                          <p className="text-sm text-white/90">Visualize your achievements</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* How It Works Section */}
+            <section id="features" className="py-20 relative z-10">
               <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">How It Works</h2>
                 <div className="grid md:grid-cols-3 gap-8">
@@ -188,6 +289,7 @@ export default function LandingPage() {
               </div>
             </section>
             
+            {/* Testimonials Section */}
             <section className="py-20 relative z-10">
               <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">Loved by Learners Worldwide</h2>
@@ -235,6 +337,7 @@ export default function LandingPage() {
 
         </main>
 
+        {/* Footer */}
         <footer className="bg-footer-background text-foreground relative z-10">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8">

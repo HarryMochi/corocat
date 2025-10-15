@@ -108,7 +108,7 @@ export default function LearnPage() {
       if (!steps || steps.length === 0) throw new Error("The AI failed to generate a course for this topic. Please try a different topic.");
       
       const newCourseData = {
-        topic: input.topic,
+        topic: result.title, // Use the generated title from the AI
         depth: input.masteryLevel as 'Quick Overview' | 'Normal Path' | 'Long Mastery',
         outline: JSON.stringify(result.course.map(s => ({ step: s.step, title: s.title, description: s.description })), null, 2),
         steps: steps, notes: "", createdAt: new Date().toISOString(),

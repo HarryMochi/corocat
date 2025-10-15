@@ -22,6 +22,10 @@ export async function generateCourseAction(input: GenerateFullCourseInput): Prom
     } catch (error) {
         console.error("Error in generateCourseAction:", error);
         if (error instanceof Error) {
+            // Check for the specific validation error
+            if (error.message.startsWith('TOPIC_VALIDATION_FAILED:')) {
+                throw new Error('Your topic is inappropriate');
+            }
             throw new Error(error.message);
         }
         throw new Error("An unknown error occurred while generating the course.");
