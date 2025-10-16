@@ -19,28 +19,26 @@ export const metadata: Metadata = {
   },
   manifest: '/site.webmanifest',
   openGraph: {
-  title: 'Corocat',
-  description: 'Your AI Guide to Learning Any Subject',
-  url: 'https://corocat.me',
-  siteName: 'Corocat',
-  images: [
-    {
-      url: 'https://corocat.me/cat.png', // your small square logo
-      width: 120,
-      height: 120,
-      alt: 'Corocat Logo',
-    },
-  ],
-  locale: 'en_US',
-  type: 'website',
-},
-twitter: {
-  card: 'summary', // 👈 this is key — makes the image small!
-  title: 'Corocat',
-  description: 'Your AI Guide to Learning Any Subject',
-  images: ['https://corocat.me/cat.png'],
-},
-
+    title: 'Corocat: Your AI Guide to Learning Any Subject',
+    description: 'Corocat uses AI to create personalized learning courses on any topic. Go from beginner to expert with a structured, easy-to-follow plan.',
+    url: 'https://corocat.me',
+    siteName: 'Corocat',
+    images: [
+      {
+        url: 'https://corocat.me/cat.png', // It's a good practice to create a social sharing image
+        width: 100,
+        height: 100,
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Corocat: Your AI Guide to Learning Any Subject',
+    description: 'Corocat uses AI to create personalized learning courses on any topic. Go from beginner to expert with a structured, easy-to-follow plan.',
+    images: ['https://corocat.me/cat.png'],
+  },
 };
 
 export default function RootLayout({
