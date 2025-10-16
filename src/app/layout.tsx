@@ -26,8 +26,8 @@ export const metadata: Metadata = {
   images: [
     {
       url: 'https://corocat.me/cat.png', // your small square logo
-      width: 100,
-      height: 100,
+      width: 120,
+      height: 120,
       alt: 'Corocat Logo',
     },
   ],
