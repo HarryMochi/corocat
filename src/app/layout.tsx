@@ -26,8 +26,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: 'https://corocat.me/cat.png', // It's a good practice to create a social sharing image
-        width: 80,
-        height: 80,
+        width: 1200,
+        height: 1200,
       },
     ],
     locale: 'en_US',
