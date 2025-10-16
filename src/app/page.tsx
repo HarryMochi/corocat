@@ -349,7 +349,7 @@ export default function LandingPage() {
                         <div className="mt-6">
                             <h4 className="font-semibold font-headline mb-4">Join Our Community</h4>
                             <Link 
-                                href="https://discord.gg/frfyxnAx"
+                                href="https://discord.gg/wVX4fkWaaA"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-2 px-4 py-2 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded-lg transition-colors duration-200"
