@@ -69,6 +69,24 @@ export async function getCourseById(courseId: string): Promise<Course | null> {
     }
 }
 
+export async function getCourseByTopic(topic: string): Promise<Course | null> {
+    const refPath = `courses`;
+    try {
+        const q = query(collection(db, "courses"), where("topic", "==", topic));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+            const docSnap = querySnapshot.docs[0];
+            const data = docSnap.data();
+            return { ...data, id: docSnap.id, createdAt: toISOString(data.createdAt) } as Course;
+        }
+        return null;
+    } catch (error) {
+        await handleFirestoreError(error, refPath, 'get');
+        throw error;
+    }
+}
+
+
 export async function getUserProfileData(userId: string) {
     const refPath = `users/${userId}`;
     try {
@@ -80,12 +98,26 @@ export async function getUserProfileData(userId: string) {
         const publishedCourses = querySnapshot.docs.map(doc => ({ marketplaceId: doc.id, ...doc.data() } as MarketplaceCourse));
         return {
             displayName: userData.displayName || 'Anonymous',
+            photoURL: userData.photoURL || null,
             creationTime: toISOString(userData.creationTime),
             activeCourses: 0, coursesCompleted: 0, coursesPublished: publishedCourses.length,
+            aboutMe: userData.aboutMe || '', 
+            socials: userData.socials || {},
+            favoriteCourses: userData.favoriteCourses || [],
+            friends: userData.friends || [],
         };
     } catch (error) {
         await handleFirestoreError(error, refPath, 'get');
         throw error;
+    }
+}
+
+export async function updateUserProfile(userId: string, updates: { [key: string]: any }): Promise<void> {
+    const refPath = `users/${userId}`;
+    try {
+        await updateDoc(doc(db, 'users', userId), updates);
+    } catch (error) {
+        await handleFirestoreError(error, refPath, 'update', updates);
     }
 }
 
@@ -193,19 +225,23 @@ export async function toggleLikeOnMarketplaceCourse(courseId: string, userId: st
     }
 }
 
-export async function sendFriendRequest(fromId: string, toEmail: string): Promise<void> {
+export async function sendFriendRequest(fromId: string, toId: string): Promise<void> {
     const refPath = 'friendRequests';
     try {
-        const usersRef = collection(db, 'users');
-        const q = query(usersRef, where('email', '==', toEmail));
-        const querySnapshot = await getDocs(q);
-        if (querySnapshot.empty) throw new Error("User with that email does not exist.");
-        const toUser = querySnapshot.docs[0];
-        const toId = toUser.id;
         if (fromId === toId) throw new Error("You cannot send a friend request to yourself.");
+
         const fromUserDoc = await getDoc(doc(db, 'users', fromId));
         if (!fromUserDoc.exists()) throw new Error("Could not find your user data.");
         const fromData = fromUserDoc.data();
+
+        const requestQuery = query(
+            collection(db, 'friendRequests'), 
+            where('from', '==', fromId), 
+            where('to', '==', toId)
+        );
+        const requestSnapshot = await getDocs(requestQuery);
+        if (!requestSnapshot.empty) throw new Error("Friend request already sent.");
+
         await addDoc(collection(db, 'friendRequests'), {
             from: fromId, to: toId,
             fromData: { displayName: fromData.displayName || 'Anonymous', photoURL: fromData.photoURL || null },

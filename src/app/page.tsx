@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/logo';
-import { BookOpenCheck, Zap, Bot, ArrowRight, Star, Mail, Users, BrainCircuit, Target, BookCopy } from 'lucide-react';
+import { BookOpenCheck, Zap, Bot, ArrowRight, Star, Mail, Users } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import MainLayout from '@/components/main-layout';
 import { Decorations } from '@/components/decorations';
@@ -66,22 +66,25 @@ export default function LandingPage() {
     },
   ];
 
-  const features = [
-      {
-          icon: <BrainCircuit className="h-10 w-10 text-primary" />,
-          title: "AI-Powered Learning Paths",
-          description: "Our AI analyzes any subject and creates a clear, structured curriculum to guide you from beginner to expert. No more guessing what to learn next."
-      },
-      {
-          icon: <Target className="h-10 w-10 text-primary" />,
-          title: "Personalized to Your Goals",
-          description: "Whether you want a quick overview or a deep dive, Corocat tailors the course depth and content to fit your specific learning objectives and timeline."
-      },
-      {
-          icon: <BookCopy className="h-10 w-10 text-primary" />,
-          title: "Interactive & Engaging Content",
-          description: "Learn through a mix of generated text, quizzes, project-based steps, and curated resources, with an AI assistant ready to help you at any point."
-      }
+  const howItWorksSteps = [
+    {
+      title: "Pick a Topic",
+      description: "Tell us what you're curious about. From coding to cooking, anything is possible.",
+      icon: <BookOpenCheck className="w-8 h-8" />,
+      color: "bg-yellow-400",
+    },
+    {
+      title: "Generate Your Path",
+      description: "Our AI instantly creates a comprehensive, step-by-step course tailored to your chosen depth.",
+      icon: <Zap className="w-8 h-8" />,
+      color: "bg-red-500",
+    },
+    {
+      title: "Learn & Master",
+      description: "Follow the steps, track your progress, and ask our AI assistant for help whenever you get stuck.",
+      icon: <Bot className="w-8 h-8" />,
+      color: "bg-purple-600",
+    },
   ];
 
   return (
@@ -173,35 +176,6 @@ export default function LandingPage() {
               </div>
             </section>
 
-            {/* What is Corocat Section */}
-            <section className="py-20 relative z-10 bg-muted">
-                <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="text-center max-w-4xl mx-auto">
-                        <h2 className="text-3xl md:text-4xl font-bold mb-6">The Future of Learning, Personalized.</h2>
-                        <p className="text-lg md:text-xl text-muted-foreground leading-relaxed mb-12">
-                            Corocat is an intelligent learning platform that transforms any subject into a personalized, structured course. Say goodbye to scattered tutorials and hello to a clear path to mastery.
-                        </p>
-                    </div>
-                    <div className="grid md:grid-cols-3 gap-8">
-                        {features.map((feature, index) => (
-                            <Card key={index} className="text-center">
-                                <CardHeader>
-                                    <div className="mx-auto bg-primary/10 p-3 rounded-full w-fit">
-                                        {feature.icon}
-                                    </div>
-                                </CardHeader>
-                                <CardContent>
-                                    <h3 className="text-xl font-bold mb-2">{feature.title}</h3>
-                                    <p className="text-muted-foreground">
-                                        {feature.description}
-                                    </p>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
             {/* Inside Corocat Section */}
             <section className="bg-background py-20 relative z-10">
               <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -210,12 +184,10 @@ export default function LandingPage() {
                   Experience a beautifully designed learning environment built for focus and progress
                 </p>
                 <div className="grid md:grid-cols-3 gap-8">
-                  <div className="group">
-                    <div className="relative rounded-xl overflow-hidden shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-2">
-                      <div className="aspect-video bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                        <BookOpenCheck className="h-24 w-24 text-primary/40" />
-                      </div>
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end">
+                  <div className="group aspect-video">
+                    <div className="relative overflow-hidden shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 h-full">
+                      <video src="/videos/dashboard.mp4" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end">
                         <div className="p-6 text-white">
                           <h3 className="font-bold text-lg mb-1">Course Dashboard</h3>
                           <p className="text-sm text-white/90">Track your learning journey</p>
@@ -223,12 +195,10 @@ export default function LandingPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="group">
-                    <div className="relative rounded-xl overflow-hidden shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-2">
-                      <div className="aspect-video bg-gradient-to-br from-accent/20 to-accent/5 flex items-center justify-center">
-                        <Bot className="h-24 w-24 text-accent/40" />
-                      </div>
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end">
+                  <div className="group aspect-video">
+                    <div className="relative overflow-hidden shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 h-full">
+                      <video src="/videos/assistant.mp4" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end">
                         <div className="p-6 text-white">
                           <h3 className="font-bold text-lg mb-1">AI Study Assistant</h3>
                           <p className="text-sm text-white/90">Get instant help and explanations</p>
@@ -236,15 +206,13 @@ export default function LandingPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="group">
-                    <div className="relative rounded-xl overflow-hidden shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-2">
-                      <div className="aspect-video bg-gradient-to-br from-secondary/20 to-secondary/5 flex items-center justify-center">
-                        <Zap className="h-24 w-24 text-secondary/40" />
-                      </div>
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end">
+                  <div className="group aspect-video">
+                    <div className="relative overflow-hidden shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 h-full">
+                      <video src="/videos/marketplace.mp4" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end">
                         <div className="p-6 text-white">
-                          <h3 className="font-bold text-lg mb-1">Progress Insights</h3>
-                          <p className="text-sm text-white/90">Visualize your achievements</p>
+                          <h3 className="font-bold text-lg mb-1">Course Marketplace</h3>
+                          <p className="text-sm text-white/90">Share and discover new paths</p>
                         </div>
                       </div>
                     </div>
@@ -254,39 +222,60 @@ export default function LandingPage() {
             </section>
 
             {/* How It Works Section */}
-            <section id="features" className="py-20 relative z-10">
-              <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-                <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">How It Works</h2>
-                <div className="grid md:grid-cols-3 gap-8">
-                  <div className="flex flex-col items-center text-center p-6 bg-card rounded-lg shadow-md transition-transform duration-300 hover:-translate-y-2 hover:shadow-xl">
-                    <div className="p-4 bg-primary rounded-full mb-4">
-                      <BookOpenCheck className="h-8 w-8 text-primary-foreground" />
+            <section id="how-it-works" className="py-20 relative z-10 bg-muted overflow-hidden">
+                <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                    <h2 className="text-3xl md:text-4xl font-bold text-center mb-24">How It Works</h2>
+                    
+                    {/* Desktop Timeline */}
+                    <div className="hidden md:block relative">
+                        <div className="absolute top-1/2 left-0 w-full h-1 bg-gradient-to-r from-yellow-400 via-red-500 to-purple-600 rounded-full -translate-y-1/2"></div>
+                        <div className="relative flex justify-between">
+                            {howItWorksSteps.map((step, index) => (
+                                <div key={index} className="flex-1 relative">
+                                    <div className="flex flex-col items-center">
+                                        {/* Icon Circle */}
+                                        <div className={cn(
+                                            "w-24 h-24 rounded-full text-white flex items-center justify-center border-4 border-muted shadow-lg z-10",
+                                            step.color
+                                        )}>
+                                            {step.icon}
+                                        </div>
+                                        
+                                        {/* Connector Line */}
+                                        <div className={cn(
+                                            "w-1 h-16",
+                                            step.color
+                                        )}></div>
+                                        
+                                        {/* Text Content */}
+                                        <div className="text-center max-w-xs">
+                                            <h3 className="text-xl font-bold mb-2">{step.title}</h3>
+                                            <p className="text-muted-foreground">{step.description}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                    <h3 className="text-xl font-bold mb-2">1. Pick a Topic</h3>
-                    <p className="text-muted-foreground">
-                      Tell us what you're curious about. From coding to cooking, anything is possible.
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-center text-center p-6 bg-card rounded-lg shadow-md transition-transform duration-300 hover:-translate-y-2 hover:shadow-xl">
-                    <div className="p-4 bg-primary rounded-full mb-4">
-                      <Zap className="h-8 w-8 text-primary-foreground" />
+
+                    {/* Mobile Timeline */}
+                    <div className="md:hidden space-y-12">
+                        {howItWorksSteps.map((step, index) => (
+                            <div key={index} className="flex items-start gap-4">
+                                <div className={cn(
+                                    "w-12 h-12 rounded-full text-white flex-shrink-0 flex items-center justify-center",
+                                    step.color
+                                )}>
+                                    {step.icon}
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-bold mb-1">{step.title}</h3>
+                                    <p className="text-muted-foreground">{step.description}</p>
+                                </div>
+                            </div>
+                        ))}
                     </div>
-                    <h3 className="text-xl font-bold mb-2">2. Generate Your Path</h3>
-                    <p className="text-muted-foreground">
-                      Our AI instantly creates a comprehensive, step-by-step course tailored to your chosen depth.
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-center text-center p-6 bg-card rounded-lg shadow-md transition-transform duration-300 hover:-translate-y-2 hover:shadow-xl">
-                    <div className="p-4 bg-primary rounded-full mb-4">
-                      <Bot className="h-8 w-8 text-primary-foreground" />
-                    </div>
-                    <h3 className="text-xl font-bold mb-2">3. Learn & Master</h3>
-                    <p className="text-muted-foreground">
-                      Follow the steps, track your progress, and ask our AI assistant for help whenever you get stuck.
-                    </p>
-                  </div>
                 </div>
-              </div>
             </section>
             
             {/* Testimonials Section */}
