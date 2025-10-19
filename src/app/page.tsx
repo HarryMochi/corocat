@@ -4,14 +4,14 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/logo';
-import { BookOpenCheck, Zap, Bot, ArrowRight, Star, Mail, Users } from 'lucide-react';
+import { BookOpenCheck, Zap, Bot, ArrowRight, Star, Mail, Users, Sparkles } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import MainLayout from '@/components/main-layout';
 import { Decorations } from '@/components/decorations';
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
@@ -132,26 +132,56 @@ export default function LandingPage() {
         </header>
 
         <main className="flex-1">
-            {/* Hero Section */}
-            <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 flex flex-col items-center text-center relative z-10">
-              <div className="animate-fade-in-up">
-                <div className="min-h-[144px] md:min-h-[192px] flex items-center justify-center">
-                    <h1 className="font-headline text-4xl md:text-6xl font-bold">
-                        Master any Subject with <br /><span className="text-primary">Excitement</span>
-                    </h1>
+            {/* Hero Section - Enhanced Version */}
+            <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-40 flex flex-col items-center text-center relative z-10">
+              <div className="animate-fade-in-up max-w-5xl">
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full mb-8 border border-primary/20">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium text-primary">AI-Powered Learning Platform</span>
                 </div>
-                <div className="mb-8">
-                    <p className="text-lg md:text-xl text-muted-foreground max-w-3xl">
-                    Corocat uses AI to create purr-fectly personalized learning courses on any topic. Go from beginner to expert with a structured, easy-to-follow plan.
-                    </p>
-                </div>
-                <div className="flex gap-4 justify-center">
-                  <Button asChild size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90 group animate-subtle-pulse">
+                
+                <h1 className="font-headline text-5xl md:text-7xl font-bold mb-6 leading-tight">
+                  Master Any Subject<br />
+                  <span className="text-primary">With Excitement</span>
+                </h1>
+                
+                <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto mb-10 leading-relaxed">
+                  Corocat uses AI to create purr-fectly personalized learning courses on any topic. Go from beginner to expert with a structured, easy-to-follow plan.
+                </p>
+                
+                <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                  <Button asChild size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90 group animate-subtle-pulse text-lg px-8 py-6">
                     <Link href="/learn">
                       Start Exploring for Free
-                      <ArrowRight className="h-4 w-4 ml-2 transition-transform group-hover:translate-x-1" />
+                      <ArrowRight className="h-5 w-5 ml-2 transition-transform group-hover:translate-x-1" />
                     </Link>
                   </Button>
+                  <Button asChild size="lg" variant="outline" className="text-lg px-8 py-6">
+                    <Link href="#how-it-works">
+                      See How It Works
+                    </Link>
+                  </Button>
+                </div>
+                
+                <div className="mt-12 flex items-center justify-center gap-8 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <div className="flex -space-x-2">
+                      {[1, 2, 3, 4].map((i) => (
+                        <div key={i} className="w-8 h-8 rounded-full bg-primary/20 border-2 border-background flex items-center justify-center">
+                          <span className="text-xs font-semibold text-primary">U</span>
+                        </div>
+                      ))}
+                    </div>
+                    <span>1000+ learners</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                    <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                    <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                    <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                    <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                    <span className="ml-1">5.0 rating</span>
+                  </div>
                 </div>
               </div>
             </section>
@@ -233,7 +263,6 @@ export default function LandingPage() {
                             {howItWorksSteps.map((step, index) => (
                                 <div key={index} className="flex-1 relative">
                                     <div className="flex flex-col items-center">
-                                        {/* Icon Circle */}
                                         <div className={cn(
                                             "w-24 h-24 rounded-full text-white flex items-center justify-center border-4 border-muted shadow-lg z-10",
                                             step.color
@@ -241,13 +270,11 @@ export default function LandingPage() {
                                             {step.icon}
                                         </div>
                                         
-                                        {/* Connector Line */}
                                         <div className={cn(
                                             "w-1 h-16",
                                             step.color
                                         )}></div>
                                         
-                                        {/* Text Content */}
                                         <div className="text-center max-w-xs">
                                             <h3 className="text-xl font-bold mb-2">{step.title}</h3>
                                             <p className="text-muted-foreground">{step.description}</p>
