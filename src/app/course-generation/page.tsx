@@ -126,7 +126,7 @@ function CourseGenerationManager() {
                 <Logo />
             </div>
             <h1 className="font-headline text-3xl font-bold mb-4">Sit tight, we're building your course!</h1>
-            <p className="text-muted-foreground mb-8">This may take a few minutes. Please don't close this tab.</p>
+            <p className="text-muted-foreground mb-8">This may take a few minutes. You may leave this tab, do NOT close it however.</p>
             
             <div className="space-y-4">
                 <Progress value={progress} />
