@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview Validates the topic, then generates a title, outline, and content for a complete course.
@@ -29,6 +28,9 @@ import {
 import { GenerateFullCourseOutput, GenerateFullCourseOutputSchema } from './schemas';
 import { GenerateCourseOutlineInput } from './generate-course-outline';
 
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const model = googleAI.model('gemini-2.5-flash');
+
 // Flow to validate the user's topic
 const validateTopicFlow = ai.defineFlow(
   {
@@ -37,7 +39,7 @@ const validateTopicFlow = ai.defineFlow(
     outputSchema: ValidateTopicOutputSchema,
   },
   async (input) => {
-    const { output } = await validateTopicPrompt(input, { model: googleAI.model('gemini-2.5-flash') });
+    const { output } = await validateTopicPrompt(input, { model });
     if (!output) {
       throw new Error('AI failed to validate the topic.');
     }
@@ -53,7 +55,7 @@ const generateCourseTitleFlow = ai.defineFlow(
     outputSchema: GenerateCourseTitleOutputSchema,
   },
   async (input) => {
-    const { output } = await generateCourseTitlePrompt(input, { model: googleAI.model('gemini-2.5-flash') });
+    const { output } = await generateCourseTitlePrompt(input, { model });
     if (!output || !output.title) {
       throw new Error('AI failed to generate a course title.');
     }
@@ -69,7 +71,7 @@ const generateCourseOutlineFlow = ai.defineFlow(
     outputSchema: GenerateCourseOutlineOutputSchema,
   },
   async (input) => {
-    const { output } = await generateCourseOutlinePrompt(input, { model: googleAI.model('gemini-2.5-flash') });
+    const { output } = await generateCourseOutlinePrompt(input, { model });
     if (!output || !output.outline || output.outline.length === 0) {
       throw new Error('AI failed to generate a course outline.');
     }
@@ -85,10 +87,9 @@ const generateStepContentFlow = ai.defineFlow(
     outputSchema: GenerateStepContentOutputSchema,
   },
   async (input) => {
-    const { output } = await generateStepContentPrompt(input, { model: googleAI.model('gemini-2.5-flash') });
-    if (!output || !output.subSteps || output.subSteps.length === 0) {
-        console.error(`AI failed to generate content for step: ${input.stepTitle}`);
-        return { subSteps: [] }; 
+    const { output } = await generateStepContentPrompt(input, { model });
+    if (!output || !output.subSteps || output.subSteps.length === 0 || !output.externalLinks || output.externalLinks.length < 2) {
+        throw new Error(`AI failed to generate complete content for step: ${input.stepTitle}`);
     }
     return output;
   }
@@ -107,10 +108,12 @@ const generateFullCourseFlow = ai.defineFlow(
     if (!validationResponse.isAppropriate) {
       throw new Error(`TOPIC_VALIDATION_FAILED: ${validationResponse.reason}`);
     }
+    await sleep(30000);
 
     // 2. Generate the title first
     const titleResponse = await generateCourseTitleFlow(input);
     const { title } = titleResponse;
+    await sleep(30000);
 
     // 3. Generate the outline using the newly generated title for better context
     const outlineResponse = await generateCourseOutlineFlow({ ...input, topic: title });
@@ -119,25 +122,25 @@ const generateFullCourseFlow = ai.defineFlow(
     // 4. Stringify the outline for the next step
     const outlineString = JSON.stringify(outlineResponse);
 
-    // 5. Create promises for generating each step's content in parallel, using the *new title*
-    const contentPromises = outline.map(step =>
-      generateStepContentFlow({
+    // 5. Create promises for generating each step's content sequentially
+    const resolvedContent = [];
+    for (const step of outline) {
+      await sleep(30000);
+      const content = await generateStepContentFlow({
         topic: title, // CORRECTED: Use the generated title here
         outline: outlineString,
         stepTitle: step.title,
-      })
-    );
+      });
+      resolvedContent.push(content);
+    }
 
-    // 6. Execute all content generation promises
-    const resolvedContent = await Promise.all(contentPromises);
-
-    // 7. Combine the outline with the generated content
+    // 6. Combine the outline with the generated content
     const course = outline.map((step, index) => ({
       ...step,
       ...resolvedContent[index],
     }));
 
-    // 8. Filter out any failed steps
+    // 7. Filter out any failed steps
     const completeCourse = course.filter(step => step.subSteps && step.subSteps.length > 0);
 
     if (completeCourse.length === 0) {

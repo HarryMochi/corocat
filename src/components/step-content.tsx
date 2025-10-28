@@ -5,7 +5,7 @@ import React, { useState, useMemo } from 'react';
 import type { Step, SubStep } from '@/lib/types';
 import { Loader2, X, BookOpen, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { Button } from './ui/button';
-import { Dialog, DialogContent } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Label } from './ui/label';
 import { Card, CardHeader, CardContent, CardFooter } from './ui/card';
@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from './ui/alert';
 
 interface StepContentProps {
     step?: Step;
+    onStepComplete: () => void;
 }
 
 function ExerciseDisplay({ subStep }: { subStep: SubStep }) {
@@ -106,7 +107,7 @@ function ExerciseDisplay({ subStep }: { subStep: SubStep }) {
     );
 }
 
-export function StepContent({ step }: StepContentProps) {
+export function StepContent({ step, onStepComplete }: StepContentProps) {
     const [activeSubStepIndex, setActiveSubStepIndex] = useState<number | null>(null);
 
     if (!step) {
@@ -173,21 +174,29 @@ export function StepContent({ step }: StepContentProps) {
             <Dialog open={activeSubStepIndex !== null} onOpenChange={(isOpen) => !isOpen && setActiveSubStepIndex(null)}>
                 {activeSubStep && (
                     <DialogContent hideClose className="max-w-full w-full h-screen flex flex-col p-0 gap-0 data-[state=open]:animate-none data-[state=closed]:animate-none !rounded-none">
-                        <div className="p-4 border-b flex items-center justify-between shrink-0">
+                        <DialogHeader className="p-4 border-b flex flex-row items-center justify-between shrink-0 space-y-0">
                             <div className="flex items-center gap-3">
                                 <BookOpen className="h-5 w-5 text-muted-foreground" />
-                                <h2 className="text-xl font-semibold">{activeSubStep.title}</h2>
+                                <DialogTitle>{activeSubStep.title}</DialogTitle>
+                                <DialogDescription />
                             </div>
                             <Button variant="ghost" size="icon" onClick={() => setActiveSubStepIndex(null)}>
                                 <X className="h-5 w-5" />
                             </Button>
-                        </div>
+                        </DialogHeader>
                         <div className="flex-1 grid md:grid-cols-2 min-h-0">
                            <div className="bg-background overflow-y-auto min-w-0 hide-scrollbar">
-                                <div
-                                    className="prose prose-lg dark:prose-invert max-w-none p-12 md:p-16"
-                                    dangerouslySetInnerHTML={{ __html: activeSubStep.content }}
-                                />
+                                <div className="p-12 md:p-16">
+                                    <div
+                                        className="prose prose-lg dark:prose-invert max-w-none"
+                                        dangerouslySetInnerHTML={{ __html: activeSubStep.content }}
+                                    />
+                                    {activeSubStep.summary && (
+                                        <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                                            <p className="font-semibold text-blue-800 dark:text-blue-200">{activeSubStep.summary}</p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                             <div className="bg-muted/30 border-l overflow-y-auto min-w-0 hide-scrollbar">
                                 <ExerciseDisplay key={activeSubStepIndex} subStep={activeSubStep} />

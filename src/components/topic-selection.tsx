@@ -4,81 +4,29 @@
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from 'next/navigation';
 import { BookOpen, Lightbulb, Link as LinkIcon, Brain, Wind, Zap, Mountain, Signal, SignalLow, SignalMedium, SignalHigh } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import Logo from "./logo";
-import type { GenerationState } from "@/app/learn/page";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { Textarea } from "./ui/textarea";
 import { cn } from "@/lib/utils";
-import type { GenerateFullCourseInput } from "@/ai/flows/generate-full-course";
 import { Label } from "./ui/label";
 
 const formSchema = z.object({
   topic: z.string().min(2, {
     message: "Topic must be at least 2 characters.",
-  }),
+  }).max(50, { message: "Topic must be 50 characters or less."}),
 });
 
 type TopicFormValues = z.infer<typeof formSchema>;
 
-interface TopicSelectionProps {
-  onGenerateCourse: (input: GenerateFullCourseInput) => Promise<void>;
-  generationState: GenerationState;
-}
-
-const loadingSteps = [
-    { icon: BookOpen, text: "Structuring your course outline..." },
-    { icon: Lightbulb, text: "Generating detailed step-by-step content..." },
-    { icon: LinkIcon, text: "Finding relevant external resources..." },
-    { icon: Brain, text: "Creating fun quizzes and facts..." },
-];
-
-function LoadingCarousel() {
-    const [currentIndex, setCurrentIndex] = useState(0);
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setCurrentIndex((prevIndex) => (prevIndex + 1) % loadingSteps.length);
-        }, 2500); // Change item every 2.5 seconds
-
-        return () => clearInterval(interval);
-    }, []);
-
-    return (
-        <div className="flex flex-col items-center justify-center space-y-4 pt-8 animate-fade-in-up text-center">
-            <h3 className="font-semibold text-lg text-muted-foreground">Building your personalized course...</h3>
-            <div className="h-24 w-full max-w-sm overflow-hidden relative">
-                {loadingSteps.map((step, index) => {
-                    return (
-                        <div
-                            key={index}
-                            className={cn(
-                                "absolute w-full transition-all duration-500 ease-in-out flex items-center justify-center gap-3",
-                                {
-                                    "opacity-100 translate-y-0": index === currentIndex,
-                                    "opacity-0 -translate-y-full": index === (currentIndex - 1 + loadingSteps.length) % loadingSteps.length,
-                                    "opacity-0 translate-y-full": index !== currentIndex && index !== (currentIndex - 1 + loadingSteps.length) % loadingSteps.length,
-                                }
-                            )}
-                            style={{ top: '50%', transform: 'translateY(-50%)' }}
-                        >
-                            <step.icon className="h-6 w-6 text-primary" />
-                            <span className="text-muted-foreground font-medium">{step.text}</span>
-                        </div>
-                    );
-                })}
-            </div>
-             <p className="text-sm text-muted-foreground/80">Quick Overview can take up to 1 minute<br></br>Normal Path can take up to 3 minutes<br></br>Long Mastery can take up to 5 minutes</p>
-        </div>
-    );
-}
-
-export default function TopicSelection({ onGenerateCourse, generationState }: TopicSelectionProps) {
+export default function TopicSelection() {
+  const router = useRouter();
   const form = useForm<TopicFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -91,23 +39,6 @@ export default function TopicSelection({ onGenerateCourse, generationState }: To
   const [masteryLevel, setMasteryLevel] = useState('Normal Path');
   const [additionalComments, setAdditionalComments] = useState('');
 
-  const isGenerating = generationState.status === 'generating';
-
-  if (isGenerating) {
-    return (
-      <div className="w-full max-w-lg">
-       <div className="flex justify-center mb-8">
-         <Logo />
-       </div>
-        <Card className="shadow-2xl shadow-primary/10 min-h-[380px] flex flex-col justify-center">
-          <CardContent>
-            <LoadingCarousel />
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
   const onSubmit = (values: TopicFormValues) => {
     setQuestionStep(1);
   };
@@ -116,12 +47,13 @@ export default function TopicSelection({ onGenerateCourse, generationState }: To
     const topic = form.getValues("topic");
     if(!topic) return;
 
-    onGenerateCourse({
-        topic,
-        knowledgeLevel,
-        masteryLevel,
-        additionalComments
-    });
+    const params = new URLSearchParams();
+    params.set('topic', topic);
+    params.set('knowledgeLevel', knowledgeLevel);
+    params.set('masteryLevel', masteryLevel);
+    params.set('additionalComments', additionalComments);
+
+    router.push(`/course-generation?${params.toString()}`);
   }
 
   const renderQuestionnaire = () => {
@@ -167,7 +99,7 @@ export default function TopicSelection({ onGenerateCourse, generationState }: To
                      <RadioGroup 
                         value={masteryLevel}
                         onValueChange={setMasteryLevel} 
-                        className="grid grid-cols-1 md:grid-cols-3 gap-4"
+                        className="grid grid-cols-1 md:grid-cols-2 gap-4"
                     >
                         <Label htmlFor="quick" className={cn("border rounded-md p-4 cursor-pointer flex flex-col items-center gap-2 text-center", masteryLevel === 'Quick Overview' && "border-primary ring-2 ring-primary bg-primary/5")}>
                             <RadioGroupItem value="Quick Overview" id="quick" className="sr-only"/>
@@ -180,12 +112,6 @@ export default function TopicSelection({ onGenerateCourse, generationState }: To
                             <Zap className="h-8 w-8 text-primary/80" />
                             <span className="font-bold">Normal Path</span>
                             <span className="text-xs text-muted-foreground">12-15 Steps</span>
-                        </Label>
-                        <Label htmlFor="long" className={cn("border rounded-md p-4 cursor-pointer flex flex-col items-center gap-2 text-center", masteryLevel === 'Long Mastery' && "border-primary ring-2 ring-primary bg-primary/5")}>
-                            <RadioGroupItem value="Long Mastery" id="long" className="sr-only"/>
-                            <Mountain className="h-8 w-8 text-primary/80" />
-                            <span className="font-bold">Long Mastery</span>
-                            <span className="text-xs text-muted-foreground">20+ Steps</span>
                         </Label>
                     </RadioGroup>
                     <div className="flex gap-2 justify-center">
@@ -203,7 +129,9 @@ export default function TopicSelection({ onGenerateCourse, generationState }: To
                         value={additionalComments}
                         onChange={(e) => setAdditionalComments(e.target.value)}
                         className="min-h-[100px]"
+                        maxLength={300}
                      />
+                     <p className="text-xs text-muted-foreground text-right">{additionalComments.length} / 300</p>
                     <div className="flex gap-2 justify-center">
                         <Button variant="outline" onClick={() => setQuestionStep(2)}>Back</Button>
                         <Button onClick={handleStartGeneration} className="bg-accent text-accent-foreground hover:bg-accent/90">Generate My Course</Button>
@@ -225,9 +153,15 @@ export default function TopicSelection({ onGenerateCourse, generationState }: To
                                     placeholder="e.g., React, Python, Music Theory" 
                                     {...field} 
                                     className="text-center text-lg h-12"
+                                    maxLength={50}
                                 />
                             </FormControl>
-                            <FormMessage />
+                            <div className="flex justify-between items-center px-1 pt-1">
+                                <FormMessage />
+                                <p className="text-xs text-muted-foreground">
+                                    {field.value.length} / 50
+                                </p>
+                            </div>
                             </FormItem>
                         )}
                         />

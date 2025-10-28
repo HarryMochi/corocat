@@ -20,14 +20,15 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Using `undefined` to denote the initial state where auth status is not yet determined.
+  const [user, setUser] = useState<User | null | undefined>(undefined);
   const router = useRouter();
   const pathname = usePathname();
 
+  const loading = user === undefined;
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
       if (currentUser) {
         // Sync user profile with Firestore
         const userRef = doc(db, 'users', currentUser.uid);
@@ -39,13 +40,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           lastLogin: new Date().toISOString(),
         }, { merge: true });
       }
-      setLoading(false);
+      setUser(currentUser);
     });
     return () => unsubscribe();
   }, []);
 
   useEffect(() => {
-    if (!loading && user && user.emailVerified && (pathname === '/login' || pathname === '/signup' || pathname === '/' || pathname === '/verify-email')) {
+    const isAuthPage = ['/login', '/signup', '/', '/verify-email'].includes(pathname);
+    if (!loading && user && user.emailVerified && isAuthPage) {
         router.push('/learn');
     }
   }, [user, loading, pathname, router]);
@@ -64,8 +66,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           creationTime: new Date().toISOString(),
         }, { merge: true });
 
-        await userCredential.user.reload();
-        setUser(auth.currentUser);
+        const updatedUser = auth.currentUser;
+        await updatedUser?.reload();
+        setUser(updatedUser);
 
         await sendEmailVerification(userCredential.user);
     }
@@ -100,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const value = {
-    user,
+    user: user === undefined ? null : user,
     loading,
     signup,
     login,
@@ -110,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sendPasswordReset,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

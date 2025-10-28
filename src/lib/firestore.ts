@@ -2,22 +2,8 @@
 import { db } from './firebase';
 import { collection, addDoc, getDocs, query, where, doc, updateDoc, deleteDoc, orderBy, getDoc, collectionGroup, runTransaction, arrayUnion, arrayRemove, onSnapshot, writeBatch } from 'firebase/firestore';
 import type { Course, CourseData, MarketplaceCourse, Step } from './types';
-import { FirestorePermissionError, errorEmitter } from './errors';
+import { FirestorePermissionError } from './server-errors';
 import { FirebaseError } from 'firebase/app';
-
-async function handleFirestoreError(error: unknown, refPath: string, operation: 'get' | 'list' | 'create' | 'update' | 'delete', resourceData?: any) {
-    if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
-        const customError = new FirestorePermissionError(
-            `Firestore permission denied for operation '${operation}' on path '${refPath}'.`,
-            refPath,
-            operation,
-            resourceData
-        );
-        errorEmitter.emit('permission-error', customError);
-        throw customError;
-    }
-    throw error;
-}
 
 const toISOString = (date: any): string => {
     if (!date) return new Date().toISOString();
@@ -33,7 +19,9 @@ export async function addCourse(courseData: CourseData): Promise<string> {
     const docRef = await addDoc(collection(db, 'courses'), { ...courseData, notes: courseData.notes ?? "" });
     return docRef.id;
   } catch (error) {
-    await handleFirestoreError(error, refPath, 'create', courseData);
+    if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
+        throw new FirestorePermissionError(`Firestore permission denied for operation 'create' on path '${refPath}'.`, refPath, 'create', courseData);
+    }
     throw error;
   }
 }
@@ -48,7 +36,9 @@ export async function getCoursesForUser(userId: string): Promise<Course[]> {
         return { ...data, id: doc.id, createdAt: toISOString(data.createdAt) } as Course;
     });
   } catch (error) {
-    await handleFirestoreError(error, refPath, 'list');
+    if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
+        throw new FirestorePermissionError(`Firestore permission denied for operation 'list' on path '${refPath}'.`, refPath, 'list');
+    }
     throw error;
   }
 }
@@ -64,10 +54,32 @@ export async function getCourseById(courseId: string): Promise<Course | null> {
         }
         return null;
     } catch (error) {
-        await handleFirestoreError(error, refPath, 'get');
+        if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
+            throw new FirestorePermissionError(`Firestore permission denied for operation 'get' on path '${refPath}'.`, refPath, 'get');
+        }
         throw error;
     }
 }
+
+export async function getCourseByTopic(topic: string): Promise<Course | null> {
+    const refPath = `courses`;
+    try {
+        const q = query(collection(db, "courses"), where("topic", "==", topic));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+            const docSnap = querySnapshot.docs[0];
+            const data = docSnap.data();
+            return { ...data, id: docSnap.id, createdAt: toISOString(data.createdAt) } as Course;
+        }
+        return null;
+    } catch (error) {
+        if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
+            throw new FirestorePermissionError(`Firestore permission denied for operation 'get' on path '${refPath}'.`, refPath, 'get');
+        }
+        throw error;
+    }
+}
+
 
 export async function getUserProfileData(userId: string) {
     const refPath = `users/${userId}`;
@@ -80,11 +92,30 @@ export async function getUserProfileData(userId: string) {
         const publishedCourses = querySnapshot.docs.map(doc => ({ marketplaceId: doc.id, ...doc.data() } as MarketplaceCourse));
         return {
             displayName: userData.displayName || 'Anonymous',
+            photoURL: userData.photoURL || null,
             creationTime: toISOString(userData.creationTime),
             activeCourses: 0, coursesCompleted: 0, coursesPublished: publishedCourses.length,
+            aboutMe: userData.aboutMe || '', 
+            socials: userData.socials || {},
+            favoriteCourses: userData.favoriteCourses || [],
+            friends: userData.friends || [],
         };
     } catch (error) {
-        await handleFirestoreError(error, refPath, 'get');
+        if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
+            throw new FirestorePermissionError(`Firestore permission denied for operation 'get' on path '${refPath}'.`, refPath, 'get');
+        }
+        throw error;
+    }
+}
+
+export async function updateUserProfile(userId: string, updates: { [key: string]: any }): Promise<void> {
+    const refPath = `users/${userId}`;
+    try {
+        await updateDoc(doc(db, 'users', userId), updates);
+    } catch (error) {
+        if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
+            throw new FirestorePermissionError(`Firestore permission denied for operation 'update' on path '${refPath}'.`, refPath, 'update', updates);
+        }
         throw error;
     }
 }
@@ -94,8 +125,10 @@ export async function updateCourse(courseId: string, updates: Partial<CourseData
   try {
     await updateDoc(doc(db, 'courses', courseId), updates);
   } catch (error) {
-    await handleFirestoreError(error, refPath, 'update', updates);
-  }
+    if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
+        throw new FirestorePermissionError(`Firestore permission denied for operation 'update' on path '${refPath}'.`, refPath, 'update', updates);
+    }
+    throw error;  }
 }
 
 export async function deleteCourse(courseId: string): Promise<void> {
@@ -103,8 +136,10 @@ export async function deleteCourse(courseId: string): Promise<void> {
   try {
     await deleteDoc(doc(db, 'courses', courseId));
   } catch (error) {
-    await handleFirestoreError(error, refPath, 'delete');
-  }
+    if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
+        throw new FirestorePermissionError(`Firestore permission denied for operation 'delete' on path '${refPath}'.`, refPath, 'delete');
+    }
+    throw error;  }
 }
 
 export async function addCourseToMarketplace(course: Course, category: string): Promise<string> {
@@ -120,7 +155,9 @@ export async function addCourseToMarketplace(course: Course, category: string): 
         await updateCourse(course.id, { isPublic: true });
         return docRef.id;
     } catch (error) {
-        await handleFirestoreError(error, refPath, 'create', marketplaceCourse);
+        if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
+            throw new FirestorePermissionError(`Firestore permission denied for operation 'create' on path '${refPath}'.`, refPath, 'create', marketplaceCourse);
+        }
         throw error;
     }
 }
@@ -137,7 +174,9 @@ export async function getMarketplaceCourses(category: string): Promise<Marketpla
         const querySnapshot = await getDocs(q);
         return querySnapshot.docs.map(processMarketplaceDoc);
     } catch (error) {
-        await handleFirestoreError(error, refPath, 'list');
+        if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
+            throw new FirestorePermissionError(`Firestore permission denied for operation 'list' on path '${refPath}'.`, refPath, 'list');
+        }
         throw error;
     }
 }
@@ -148,7 +187,9 @@ export async function getAllMarketplaceCourses(): Promise<MarketplaceCourse[]> {
         const querySnapshot = await getDocs(collection(db, 'marketplaceCourses'));
         return querySnapshot.docs.map(processMarketplaceDoc);
     } catch (error) {
-        await handleFirestoreError(error, refPath, 'list');
+        if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
+            throw new FirestorePermissionError(`Firestore permission denied for operation 'list' on path '${refPath}'.`, refPath, 'list');
+        }
         throw error;
     }
 }
@@ -189,30 +230,39 @@ export async function toggleLikeOnMarketplaceCourse(courseId: string, userId: st
             }
         });
     } catch (error) {
-        await handleFirestoreError(error, refPath, 'update', { userId });
+        if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
+            throw new FirestorePermissionError(`Firestore permission denied for operation 'update' on path '${refPath}'.`, refPath, 'update', { userId });
+        }
+        throw error;
     }
 }
 
-export async function sendFriendRequest(fromId: string, toEmail: string): Promise<void> {
+export async function sendFriendRequest(fromId: string, toId: string): Promise<void> {
     const refPath = 'friendRequests';
     try {
-        const usersRef = collection(db, 'users');
-        const q = query(usersRef, where('email', '==', toEmail));
-        const querySnapshot = await getDocs(q);
-        if (querySnapshot.empty) throw new Error("User with that email does not exist.");
-        const toUser = querySnapshot.docs[0];
-        const toId = toUser.id;
         if (fromId === toId) throw new Error("You cannot send a friend request to yourself.");
+
         const fromUserDoc = await getDoc(doc(db, 'users', fromId));
         if (!fromUserDoc.exists()) throw new Error("Could not find your user data.");
         const fromData = fromUserDoc.data();
+
+        const requestQuery = query(
+            collection(db, 'friendRequests'), 
+            where('from', '==', fromId), 
+            where('to', '==', toId)
+        );
+        const requestSnapshot = await getDocs(requestQuery);
+        if (!requestSnapshot.empty) throw new Error("Friend request already sent.");
+
         await addDoc(collection(db, 'friendRequests'), {
             from: fromId, to: toId,
             fromData: { displayName: fromData.displayName || 'Anonymous', photoURL: fromData.photoURL || null },
             status: 'pending', createdAt: new Date().toISOString(),
         });
     } catch (error) {
-        await handleFirestoreError(error, refPath, 'create');
+        if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
+            throw new FirestorePermissionError(`Firestore permission denied for operation 'create' on path '${refPath}'.`, refPath, 'create');
+        }
         throw error;
     }
 }
@@ -223,7 +273,12 @@ export function getFriendRequests(userId: string, callback: (requests: any[]) =>
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const requests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         callback(requests);
-    }, (error) => handleFirestoreError(error, refPath, 'list'));
+    }, (error) => {
+        if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
+            throw new FirestorePermissionError(`Firestore permission denied for operation 'list' on path '${refPath}'.`, refPath, 'list');
+        }
+        throw error;
+    });
     return unsubscribe;
 }
 
@@ -233,7 +288,12 @@ export function getFriends(userId: string, callback: (friends: any[]) => void): 
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const friends = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         callback(friends);
-    }, (error) => handleFirestoreError(error, refPath, 'list'));
+    }, (error) => {
+        if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
+            throw new FirestorePermissionError(`Firestore permission denied for operation 'list' on path '${refPath}'.`, refPath, 'list');
+        }
+        throw error;
+    });
     return unsubscribe;
 }
 
@@ -257,7 +317,9 @@ export async function acceptFriendRequest(requestId: string): Promise<void> {
         });
         if (fromId && toName) await addNotification(fromId, `${toName} accepted your friend request.`);
     } catch (error) {
-        await handleFirestoreError(error, `friendRequests/${requestId}`, 'update');
+        if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
+            throw new FirestorePermissionError(`Firestore permission denied for operation 'update' on path 'friendRequests/${requestId}'.`, `friendRequests/${requestId}`, 'update');
+        }
         throw error;
     }
 }
@@ -275,7 +337,9 @@ export async function rejectFriendRequest(requestId: string): Promise<void> {
         await deleteDoc(requestRef);
         await addNotification(from, `${toName} declined your friend request.`);
     } catch (error) {
-        await handleFirestoreError(error, `friendRequests/${requestId}`, 'delete');
+        if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
+            throw new FirestorePermissionError(`Firestore permission denied for operation 'delete' on path 'friendRequests/${requestId}'.`, `friendRequests/${requestId}`, 'delete');
+        }
         throw error;
     }
 }
@@ -291,7 +355,9 @@ export async function removeFriend(userId: string, friendId: string): Promise<vo
         });
         await addNotification(friendId, `${userName} removed you from their friends list.`);
     } catch (error) {
-        await handleFirestoreError(error, `users/${userId}/friends/${friendId}`, 'delete');
+        if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
+            throw new FirestorePermissionError(`Firestore permission denied for operation 'delete' on path 'users/${userId}/friends/${friendId}'.`, `users/${userId}/friends/${friendId}`, 'delete');
+        }
         throw error;
     }
 }
@@ -314,7 +380,12 @@ export function getNotifications(userId: string, callback: (notifications: any[]
             return { id: doc.id, ...data, createdAt: toISOString(data.createdAt) };
         });
         callback(notifications);
-    }, (error) => handleFirestoreError(error, refPath, 'list'));
+    }, (error) => {
+        if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
+            throw new FirestorePermissionError(`Firestore permission denied for operation 'list' on path '${refPath}'.`, refPath, 'list');
+        }
+        throw error;
+    });
     return unsubscribe;
 }
 
@@ -323,7 +394,10 @@ export async function markNotificationAsRead(userId: string, notificationId: str
     try {
         await updateDoc(doc(db, 'users', userId, 'notifications', notificationId), { read: true });
     } catch (error) {
-        await handleFirestoreError(error, refPath, 'update');
+        if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
+            throw new FirestorePermissionError(`Firestore permission denied for operation 'update' on path '${refPath}'.`, refPath, 'update');
+        }
+        throw error;
     }
 }
 
@@ -336,7 +410,10 @@ export async function markAllNotificationsAsRead(userId: string): Promise<void> 
         snapshot.docs.forEach(doc => batch.update(doc.ref, { read: true }));
         await batch.commit();
     } catch (error) {
-        await handleFirestoreError(error, refPath, 'update');
+        if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
+            throw new FirestorePermissionError(`Firestore permission denied for operation 'update' on path '${refPath}'.`, refPath, 'update');
+        }
+        throw error;
     }
 }
 

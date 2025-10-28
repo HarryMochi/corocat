@@ -3,7 +3,6 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/hooks/use-auth';
-import { FirebaseErrorListener } from '@/components/firebase-error-listener';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://corocat.me'),
@@ -78,7 +77,6 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <AuthProvider>
-          <FirebaseErrorListener />
           {children}
           <Toaster />
         </AuthProvider>

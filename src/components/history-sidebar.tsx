@@ -150,9 +150,6 @@ export default function HistorySidebar({
         <Link href="/"><Logo /></Link>
       </div>
       <div className="p-4 space-y-2">
-        <Button variant="outline" className="w-full" asChild>
-            <Link href="/marketplace"><Globe className="mr-2 h-4 w-4" />Global Marketplace</Link>
-        </Button>
         <div className="flex gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

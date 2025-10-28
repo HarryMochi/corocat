@@ -20,6 +20,7 @@ export const ExerciseSchema = z.object({
 export const SubStepSchema = z.object({
   title: z.string().describe('A short title for this sub-step (for the clickable card).'),
   content: z.string().describe('Rich HTML content for the lesson, including various tags for formatting.'),
+  summary: z.string().describe('A single sentence that summarizes the content of the lesson.'),
   exercise: ExerciseSchema.describe('A two-part exercise to test the user on the lesson content.'),
 });
 
@@ -30,7 +31,7 @@ export const CourseStepSchema = z.object({
     description: z.string(),
     subSteps: z.array(SubStepSchema),
     funFact: z.string().optional(),
-    externalLinks: z.array(ExternalLinkSchema).optional(),
+    externalLinks: z.array(ExternalLinkSchema),
 });
 
 export const GenerateFullCourseOutputSchema = z.object({
