@@ -244,11 +244,7 @@ export default function ProfilePage() {
     const mainContent = (
         <div className="h-full p-4 md:p-8 max-w-4xl mx-auto text-foreground">
             {/* HEADER */}
-            <header className="flex justify-between items-center mb-8">
-                <Button variant="ghost" size="sm" asChild>
-                    <Link href="/marketplace"><ArrowLeft className="mr-2 h-4 w-4" />Back to Marketplace</Link>
-                </Button>
-            </header>
+            
 
             {/* PROFILE PICTURE */}
             <div className="flex flex-col md:flex-row items-center gap-8 mb-12">
