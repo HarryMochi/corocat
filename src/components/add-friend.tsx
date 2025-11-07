@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { sendFriendRequest } from '@/lib/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -11,35 +12,41 @@ export default function AddFriend({ onClose }: { onClose: () => void }) {
   const { user } = useAuth();
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleSendRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
-    if (!user || !email) return;
-
-    // Check if the user exists
-    const usersRef = collection(db, 'users');
-    const q = query(usersRef, where('email', '==', email));
-    const querySnapshot = await getDocs(q);
-
-    if (querySnapshot.empty) {
-      setError('User not found.');
+    if (!user || !email) {
+      setLoading(false);
       return;
     }
 
-    const receiver = querySnapshot.docs[0];
+    try {
+      // Check if the user exists
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('email', '==', email));
+      const querySnapshot = await getDocs(q);
 
-    // Send the friend request
-    await addDoc(collection(db, 'friendRequests'), {
-      senderId: user.uid,
-      senderEmail: user.email,
-      receiverId: receiver.id,
-      receiverEmail: email,
-      status: 'pending',
-    });
+      if (querySnapshot.empty) {
+        setError('User not found.');
+        setLoading(false);
+        return;
+      }
 
-    onClose();
+      const receiver = querySnapshot.docs[0];
+
+      // Send the friend request using the proper function from firestore.ts
+      await sendFriendRequest(user.uid, receiver.id);
+      
+      setLoading(false);
+      onClose();
+    } catch (error: any) {
+      setError(error.message || 'Failed to send friend request');
+      setLoading(false);
+    }
   };
 
   return (
@@ -52,8 +59,11 @@ export default function AddFriend({ onClose }: { onClose: () => void }) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            disabled={loading}
           />
-          <Button type="submit">Send Request</Button>
+          <Button type="submit" disabled={loading}>
+            {loading ? 'Sending...' : 'Send Request'}
+          </Button>
         </div>
         {error && <p className="text-red-500 mt-2">{error}</p>}
       </form>

@@ -27,6 +27,70 @@ const DiscordIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+// StarBorder Component
+const StarBorder = ({
+  as: Component = 'button',
+  className = '',
+  color = '#a855f7',
+  speed = '5s',
+  children,
+  ...rest
+}: {
+  as?: any;
+  className?: string;
+  color?: string;
+  speed?: string;
+  children: React.ReactNode;
+  [key: string]: any;
+}) => {
+  return (
+    <Component
+      className={`inline-block relative rounded-[20px] overflow-hidden ${className}`}
+      {...rest}
+    >
+      <style jsx>{`
+        @keyframes star-movement-bottom {
+          0% {
+            transform: translate(0%, 0%);
+            opacity: 1;
+          }
+          100% {
+            transform: translate(-100%, 0%);
+            opacity: 0;
+          }
+        }
+        @keyframes star-movement-top {
+          0% {
+            transform: translate(0%, 0%);
+            opacity: 1;
+          }
+          100% {
+            transform: translate(100%, 0%);
+            opacity: 0;
+          }
+        }
+      `}</style>
+      <div
+        className="absolute w-[300%] h-1/2 opacity-70 bottom-[-12px] right-[-250%] rounded-[50%] z-0 animate-[star-movement-bottom_linear_infinite_alternate]"
+        style={{
+          background: `radial-gradient(circle, ${color}, transparent 10%)`,
+          animationDuration: speed
+        }}
+      ></div>
+      <div
+        className="absolute opacity-70 w-[300%] h-1/2 top-[-12px] left-[-250%] rounded-[50%] z-0 animate-[star-movement-top_linear_infinite_alternate]"
+        style={{
+          background: `radial-gradient(circle, ${color}, transparent 10%)`,
+          animationDuration: speed
+        }}
+      ></div>
+      <div className="relative border border-gray-800 bg-black text-white text-base text-center px-[26px] py-4 rounded-[20px] z-10">
+        {children}
+      </div>
+    </Component>
+  );
+};
+
 export default function LandingPage() {
   const { user, loading } = useAuth();
   const [scrollY, setScrollY] = useState(0);
@@ -112,16 +176,16 @@ export default function LandingPage() {
                         <DropdownMenuItem>My Friends</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                    <Button asChild>
+                    <Button asChild className="rounded-full">
                       <Link href="/learn">Go to App</Link>
                     </Button>
                   </>
                 ) : (
                   <>
-                    <Button variant="ghost" asChild>
+                    <Button variant="ghost" asChild className="rounded-full border-orange-500 border">
                       <Link href="/login">Log In</Link>
                     </Button>
-                    <Button asChild>
+                    <Button asChild className="rounded-full">
                       <Link href="/signup">Sign Up</Link>
                     </Button>
                   </>
@@ -146,17 +210,12 @@ export default function LandingPage() {
                 </h1>
                 
                 <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto mb-10 leading-relaxed">
-                  Corocat uses AI to create purr-fectly personalized learning courses on any topic. Go from beginner to expert with a structured, easy-to-follow plan.
+                  Corocat uses AI to create perfectly personalized learning courses on any topic. Go from beginner to expert with a structured, easy-to-follow plan.
                 </p>
                 
                 <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                  <Button asChild size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90 group animate-subtle-pulse text-lg px-8 py-6">
-                    <Link href="/learn">
-                      Start Exploring for Free
-                      <ArrowRight className="h-5 w-5 ml-2 transition-transform group-hover:translate-x-1" />
-                    </Link>
-                  </Button>
-                  <Button asChild size="lg" variant="outline" className="text-lg px-8 py-6">
+                 
+                  <Button asChild size="lg"  className="text-lg px-8 py-6 rounded-full">
                     <Link href="#how-it-works">
                       See How It Works
                     </Link>
@@ -166,9 +225,14 @@ export default function LandingPage() {
                 <div className="mt-12 flex items-center justify-center gap-8 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <div className="flex -space-x-2">
-                      {[1, 2, 3, 4].map((i) => (
-                        <div key={i} className="w-8 h-8 rounded-full bg-primary/20 border-2 border-background flex items-center justify-center">
-                          <span className="text-xs font-semibold text-primary">U</span>
+                      {[
+                        'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
+                        'https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka',
+                        'https://api.dicebear.com/7.x/avataaars/svg?seed=Maya',
+                        'https://api.dicebear.com/7.x/avataaars/svg?seed=Oscar'
+                      ].map((avatar, i) => (
+                        <div key={i} className="w-8 h-8 rounded-full bg-primary/20 border-2 border-background overflow-hidden">
+                          <img src={avatar} alt={`User ${i + 1}`} className="w-full h-full object-cover" />
                         </div>
                       ))}
                     </div>
@@ -180,7 +244,7 @@ export default function LandingPage() {
                     <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
                     <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
                     <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                    <span className="ml-1">5.0 rating</span>
+                    <span className="ml-1">4.8 rating</span>
                   </div>
                 </div>
               </div>
@@ -380,7 +444,7 @@ export default function LandingPage() {
                         <ul className="mt-4 space-y-2">
                             <li><Link href="/" className="text-muted-foreground hover:text-primary">Home</Link></li>
                             <li><Link href="/learn" className="text-muted-foreground hover:text-primary">Get Started</Link></li>
-                            <li><Link href="/login" className="text-muted-foreground hover:text-primary">Log In</Link></li>
+                            <li><Link href="/login" className="text-muted-foareground hover:text-primary">Log In</Link></li>
                             <li><Link href="/signup" className="text-muted-foreground hover:text-primary">Sign Up</Link></li>
                         </ul>
                     </div>
