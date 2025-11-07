@@ -9,13 +9,15 @@ import Logo from "./logo";
 import Link from "next/link";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import { NotificationBell } from "./notification-bell";
 
 interface LearnLayoutProps {
     sidebar: React.ReactNode;
     mainContent: React.ReactNode;
+    onCourseAccepted: (newCourseId: string) => Promise<void>; // Added prop
 }
 
-export default function LearnLayout({ sidebar, mainContent }: LearnLayoutProps) {
+export default function LearnLayout({ sidebar, mainContent, onCourseAccepted }: LearnLayoutProps) {
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const isMobile = useIsMobile();
     
@@ -40,6 +42,7 @@ export default function LearnLayout({ sidebar, mainContent }: LearnLayoutProps) 
                                 <Logo />
                             </Link>
                         </div>
+                        <NotificationBell onCourseAccepted={onCourseAccepted} />
                     </div>
                 </header>
                 <main className="flex-1">{mainContent}</main>
