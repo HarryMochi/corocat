@@ -3,11 +3,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
-import { getUserProfileData, getCoursesForUser, updateUserProfile, sendFriendRequest } from '@/lib/firestore';
+import { getCoursesForUser, updateUserProfile } from '@/lib/firestore';
+import { sendFriendRequest } from '@/app/actions';
 import { Loader2, ArrowLeft, Github, Twitter, Linkedin, BookOpen, Edit, Youtube, Globe, UserPlus, Check, Upload } from 'lucide-react';
 import LearnLayout from '@/components/learn-layout';
 import HistorySidebar from '@/components/history-sidebar';
-import type { Course } from '@/lib/types';
+import type { Course, User } from '@/lib/types';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
@@ -17,6 +18,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+
+async function getUserProfileData(userId: string): Promise<any> {
+    const userRef = doc(db, "users", userId);
+    const userSnap = await getDoc(userRef);
+    if (userSnap.exists()) {
+        return userSnap.data();
+    }
+    throw new Error("User not found");
+}
 
 interface UserProfile {
     displayName: string;
@@ -48,6 +60,10 @@ export default function ProfilePage() {
     const [isOwner, setIsOwner] = useState(false);
     const [areAlreadyFriends, setAreAlreadyFriends] = useState(false);
 
+    // Name
+    const [newDisplayName, setNewDisplayName] = useState("");
+    const [isNameEditing, setIsNameEditing] = useState(false);
+
     // About Me
     const [aboutMe, setAboutMe] = useState("");
     const [isAboutMeOpen, setAboutMeOpen] = useState(false);
@@ -73,6 +89,7 @@ export default function ProfilePage() {
         try {
             const userData = await getUserProfileData(userId);
             setProfile(userData);
+            setNewDisplayName(userData.displayName || '');
             setAboutMe(userData.aboutMe || '');
             setSocials(userData.socials || { github: '', twitter: '', linkedin: '', youtube: '', website: '' });
             setSelectedCourses(userData.favoriteCourses || []);
@@ -101,6 +118,13 @@ export default function ProfilePage() {
         fetchProfileData();
         if (isOwner) fetchSidebarCourses();
     }, [isOwner, fetchProfileData, fetchSidebarCourses]);
+
+    const handleSaveDisplayName = async () => {
+        if (!user || !newDisplayName) return;
+        await updateUserProfile(user.uid, { displayName: newDisplayName });
+        await fetchProfileData();
+        setIsNameEditing(false);
+    };
 
     const handleSaveAboutMe = async () => {
         if (!user) return;
@@ -199,7 +223,7 @@ export default function ProfilePage() {
 
     const handleAddFriend = async () => {
         if (!user || !profile) return;
-        await sendFriendRequest(user.uid, userId);
+        await sendFriendRequest(user as User, profile.displayName as string);
         setAreAlreadyFriends(true);
     };
 
@@ -244,7 +268,11 @@ export default function ProfilePage() {
     const mainContent = (
         <div className="h-full p-4 md:p-8 max-w-4xl mx-auto text-foreground">
             {/* HEADER */}
-            
+            <header className="flex justify-between items-center mb-8">
+                <Button variant="ghost" size="sm" asChild>
+                    <Link href="/marketplace"><ArrowLeft className="mr-2 h-4 w-4" />Back to Marketplace</Link>
+                </Button>
+            </header>
 
             {/* PROFILE PICTURE */}
             <div className="flex flex-col md:flex-row items-center gap-8 mb-12">
@@ -254,7 +282,7 @@ export default function ProfilePage() {
                             <div className="relative group">
                                 <Avatar className={`h-32 w-32 border-4 border-primary/20 ${isOwner ? 'cursor-pointer' : ''}`}>
                                     <AvatarImage src={profile.photoURL} alt={profile.displayName} className="object-cover" />
-                                    <AvatarFallback className="text-5xl">{getInitials(profile.displayName)}</AvatarFallback>
+                                    <AvatarFallback style={{ backgroundColor: '#f5f5dc' }} className="text-5xl text-black">{getInitials(profile.displayName)}</AvatarFallback>
                                 </Avatar>
                                 {isOwner && (
                                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
@@ -286,9 +314,20 @@ export default function ProfilePage() {
                 </div>
                 <div className="text-center md:text-left flex-grow">
                     <div className="flex items-center justify-between">
-                        <div>
+                        <div className="flex items-center gap-2">
                             <h1 className="text-4xl font-bold font-headline text-primary">{profile.displayName}</h1>
-                            <p className="text-muted-foreground mt-1">Member since {format(new Date(profile.creationTime), 'MMMM yyyy')}</p>
+                            {isOwner && (
+                                <Dialog open={isNameEditing} onOpenChange={setIsNameEditing}>
+                                    <DialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" onClick={() => setNewDisplayName(profile.displayName)}><Edit className="h-5 w-5" /></Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader><DialogTitle>Edit Display Name</DialogTitle></DialogHeader>
+                                        <Input value={newDisplayName} onChange={(e) => setNewDisplayName(e.target.value)} />
+                                        <Button onClick={handleSaveDisplayName}>Save</Button>
+                                    </DialogContent>
+                                </Dialog>
+                            )}
                         </div>
                         {!isOwner && (
                             <Button onClick={handleAddFriend} disabled={areAlreadyFriends} size="sm" className="rounded-md">
@@ -296,6 +335,7 @@ export default function ProfilePage() {
                             </Button>
                         )}
                     </div>
+                    {profile.creationTime && <p className="text-muted-foreground mt-1">Member since {format(new Date(profile.creationTime), 'MMMM yyyy')}</p>}
                 </div>
             </div>
 
@@ -325,7 +365,7 @@ export default function ProfilePage() {
                     <CardHeader className="flex flex-row items-center justify-between">
                         <CardTitle className="font-headline text-2xl text-primary">My Socials</CardTitle>
                         {isOwner && (
-                            <Dialog open={isSocialsOpen} onOpenChange={setSocialsOpen}>
+                            <Dialog open={isSocialsOpen} onOpenchange={setSocialsOpen}>
                                 <DialogTrigger asChild><Button variant="ghost" size="icon"><Edit className="h-5 w-5" /></Button></DialogTrigger>
                                 <DialogContent>
                                     <DialogHeader><DialogTitle>Edit Social Links</DialogTitle></DialogHeader>
