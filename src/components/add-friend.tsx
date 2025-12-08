@@ -38,7 +38,7 @@ export default function AddFriend({ onClose }: { onClose: () => void }) {
 
       const receiver = querySnapshot.docs[0];
 
-      // Send the friend request using the proper function from firestore.ts
+      console.log("This is user Uid",user.uid,"This Is Reciever id",receiver.id)
       await sendFriendRequest(user.uid, receiver.id);
       
       setLoading(false);

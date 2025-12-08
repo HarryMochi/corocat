@@ -1,6 +1,6 @@
 
 import { db } from './firebase';
-import { collection, addDoc, getDocs, query, where, doc, updateDoc, deleteDoc, orderBy, getDoc, collectionGroup, runTransaction, arrayUnion, arrayRemove, onSnapshot, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, doc, updateDoc, deleteDoc, orderBy, getDoc, collectionGroup, runTransaction, arrayUnion, arrayRemove, onSnapshot, writeBatch, serverTimestamp } from 'firebase/firestore';
 import type { Course, CourseData, MarketplaceCourse, Step } from './types';
 import { FirestorePermissionError } from './server-errors';
 import { FirebaseError } from 'firebase/app';
@@ -108,16 +108,25 @@ export async function getUserProfileData(userId: string) {
     }
 }
 
-export async function updateUserProfile(userId: string, updates: { [key: string]: any }): Promise<void> {
-    const refPath = `users/${userId}`;
-    try {
-        await updateDoc(doc(db, 'users', userId), updates);
-    } catch (error) {
-        if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
-            throw new FirestorePermissionError(`Firestore permission denied for operation 'update' on path '${refPath}'.`, refPath, 'update', updates);
-        }
-        throw error;
+export async function updateUserProfile(
+  userId: string,
+  updates: { [key: string]: any }
+): Promise<{ message: string; success: boolean }> {
+  const refPath = `users/${userId}`;
+  try {
+    await updateDoc(doc(db, "users", userId), updates);
+    return { message: "Successfully Updated The Field!", success: true };
+  } catch (error: any) {
+    if (
+      error instanceof FirebaseError &&
+      (error.code === "permission-denied" || error.code === "unauthenticated")
+    ) {
+      throw new Error(
+        `Firestore permission denied for operation 'update' on path '${refPath}'.`
+      );
     }
+    throw error;
+  }
 }
 
 export async function updateCourse(courseId: string, updates: Partial<CourseData>): Promise<void> {
@@ -161,7 +170,14 @@ export async function addCourseToMarketplace(course: Course, category: string): 
         throw error;
     }
 }
-
+export async function addNotification(userId: string, message: string,type:string, data?: any): Promise<void> {
+    const refPath = `users/${userId}/notifications`;
+    try {
+        await addDoc(collection(db, 'users', userId, 'notifications'), { message, createdAt: new Date().toISOString(), read: false, type:type });
+    } catch (error) {
+        console.error("Failed to add notification:", error);
+    }
+}
 const processMarketplaceDoc = (doc: any) => {
     const data = doc.data();
     return { marketplaceId: doc.id, ...data, createdAt: toISOString(data.createdAt) } as MarketplaceCourse;
@@ -239,6 +255,7 @@ export async function toggleLikeOnMarketplaceCourse(courseId: string, userId: st
 
 export async function sendFriendRequest(fromId: string, toId: string): Promise<void> {
     const refPath = 'friendRequests';
+    
     try {
         if (fromId === toId) throw new Error("You cannot send a friend request to yourself.");
 
@@ -269,6 +286,7 @@ export async function sendFriendRequest(fromId: string, toId: string): Promise<v
 
 export function getFriendRequests(userId: string, callback: (requests: any[]) => void): () => void {
     const refPath = 'friendRequests';
+    console.log("This is the userid",userId)
     const q = query(collection(db, 'friendRequests'), where('to', '==', userId), where('status', '==', 'pending'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const requests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -284,6 +302,7 @@ export function getFriendRequests(userId: string, callback: (requests: any[]) =>
 
 export function getFriends(userId: string, callback: (friends: any[]) => void): () => void {
     const refPath = `users/${userId}/friends`;
+    
     const q = collection(db, 'users', userId, 'friends');
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const friends = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -298,78 +317,165 @@ export function getFriends(userId: string, callback: (friends: any[]) => void): 
 }
 
 export async function acceptFriendRequest(requestId: string): Promise<void> {
-    const requestRef = doc(db, 'friendRequests', requestId);
-    let fromId: string = '';
-    let toName: string = '';
-    try {
-        await runTransaction(db, async (transaction) => {
-            const requestDoc = await transaction.get(requestRef);
-            if (!requestDoc.exists()) throw new Error("Friend request not found.");
-            const { from, to, fromData } = requestDoc.data();
-            fromId = from;
-            const toUserDoc = await getDoc(doc(db, 'users', to));
-            if (!toUserDoc.exists()) throw new Error("Could not find your user data.");
-            const toData = toUserDoc.data();
-            toName = toData.displayName || 'Anonymous';
-            transaction.set(doc(db, 'users', from, 'friends', to), { displayName: toData.displayName || 'Anonymous', photoURL: toData.photoURL || null });
-            transaction.set(doc(db, 'users', to, 'friends', from), { displayName: fromData.displayName || 'Anonymous', photoURL: fromData.photoURL || null });
-            transaction.delete(requestRef);
-        });
-        if (fromId && toName) await addNotification(fromId, `${toName} accepted your friend request.`);
-    } catch (error) {
-        if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
-            throw new FirestorePermissionError(`Firestore permission denied for operation 'update' on path 'friendRequests/${requestId}'.`, `friendRequests/${requestId}`, 'update');
-        }
-        throw error;
-    }
+  const requestRef = doc(db, "friendRequests", requestId);
+
+  try {
+    await runTransaction(db, async (transaction) => {
+      const requestSnap = await transaction.get(requestRef);
+      if (!requestSnap.exists()) throw new Error("Friend request not found.");
+
+      const { from, to } = requestSnap.data();
+
+      // ---- Fetch sender (fromUser) ----
+      const fromUserRef = doc(db, "users", from);
+      const fromUserSnap = await transaction.get(fromUserRef);
+      if (!fromUserSnap.exists()) throw new Error("Sender user not found.");
+      const fromData = fromUserSnap.data();
+
+      // ---- Fetch receiver (toUser) ----
+      const toUserRef = doc(db, "users", to);
+      const toUserSnap = await transaction.get(toUserRef);
+      if (!toUserSnap.exists()) throw new Error("Your user data not found.");
+      const toData = toUserSnap.data();
+
+      const toName = toData.displayName || "Anonymous";  
+
+      // ---- Add each other as friends ----
+      transaction.set(doc(db, "users", from, "friends", to), {
+        displayName: toData.displayName || "Anonymous",
+        photoURL: toData.photoURL || null,
+      });
+
+      transaction.set(doc(db, "users", to, "friends", from), {
+        displayName: fromData.displayName || "Anonymous",
+        photoURL: fromData.photoURL || null,
+      });
+
+      // ---- Delete pending request ----
+      transaction.delete(requestRef);
+
+      // ======================================================
+      // 🔥 CREATE NOTIFICATION FOR "from" USER
+      // ======================================================
+      const notifRef = doc(
+        db,
+        "users",
+        from,
+        "notifications",
+        requestId
+      );
+
+      transaction.set(notifRef, {
+        id: requestId,
+        type: "friend_request_accepted",
+        fromUserId: to,                          // who accepted the request
+        fromUserName: toName,                    // receiver’s name
+        fromUserAvatar: toData.photoURL || null, // receiver’s avatar
+        message: `${toName} accepted your friend request.`,
+        isRead: false,
+        createdAt: serverTimestamp(),
+      });
+      // ======================================================
+
+      return toName;
+    });
+
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
 }
+
+
 
 export async function rejectFriendRequest(requestId: string): Promise<void> {
-    const requestRef = doc(db, 'friendRequests', requestId);
-    try {
-        const requestDoc = await getDoc(requestRef);
-        if (!requestDoc.exists()) throw new Error("Friend request not found.");
-        const { from, to } = requestDoc.data();
-        const toUserDoc = await getDoc(doc(db, 'users', to));
-        if (!toUserDoc.exists()) throw new Error("Could not find your user data.");
-        const toData = toUserDoc.data();
-        const toName = toData.displayName || 'Anonymous';
-        await deleteDoc(requestRef);
-        await addNotification(from, `${toName} declined your friend request.`);
-    } catch (error) {
-        if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
-            throw new FirestorePermissionError(`Firestore permission denied for operation 'delete' on path 'friendRequests/${requestId}'.`, `friendRequests/${requestId}`, 'delete');
-        }
-        throw error;
-    }
+  const requestRef = doc(db, "friendRequests", requestId);
+
+  try {
+    const requestSnap = await getDoc(requestRef);
+    if (!requestSnap.exists()) throw new Error("Friend request not found.");
+
+    const { from, to } = requestSnap.data();
+
+    // Fetch receiver (the one rejecting)
+    const toUserSnap = await getDoc(doc(db, "users", to));
+    if (!toUserSnap.exists()) throw new Error("Could not find your user data.");
+
+    const toData = toUserSnap.data();
+    const toName = toData.displayName || "Anonymous";
+
+ 
+    await deleteDoc(requestRef);
+
+  
+    const notificationsRef = collection(db, "users", from, "notifications");
+
+   
+    await addDoc(notificationsRef, {
+      id:requestId,
+      type: "friend_request_rejected",
+      fromUserId: to,
+      fromUserName: toName,
+      fromUserAvatar: toData.photoURL || null,
+      message: `${toName} rejected your friend request.`,
+      isRead: false,
+      createdAt: serverTimestamp(),
+    });
+
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
 }
+
 
 export async function removeFriend(userId: string, friendId: string): Promise<void> {
-    try {
-        const userDoc = await getDoc(doc(db, 'users', userId));
-        if (!userDoc.exists()) throw new Error("User not found");
-        const userName = userDoc.data().displayName || 'Anonymous';
-        await runTransaction(db, async (transaction) => {
-            transaction.delete(doc(db, 'users', userId, 'friends', friendId));
-            transaction.delete(doc(db, 'users', friendId, 'friends', userId));
-        });
-        await addNotification(friendId, `${userName} removed you from their friends list.`);
-    } catch (error) {
-        if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
-            throw new FirestorePermissionError(`Firestore permission denied for operation 'delete' on path 'users/${userId}/friends/${friendId}'.`, `users/${userId}/friends/${friendId}`, 'delete');
-        }
-        throw error;
-    }
+  try {
+    const userSnap = await getDoc(doc(db, "users", userId));
+    if (!userSnap.exists()) throw new Error("User not found");
+
+    const userData = userSnap.data();
+    const userName = userData.displayName || "Anonymous";
+
+   
+    const userFriendRef = doc(db, "users", userId, "friends", friendId);
+    const friendUserRef = doc(db, "users", friendId, "friends", userId);
+
+    await runTransaction(db, async (transaction) => {
+      const userFriendSnap = await transaction.get(userFriendRef);
+      const friendUserSnap = await transaction.get(friendUserRef);
+
+      // Remove from both friend lists
+      if (userFriendSnap.exists()) {
+        transaction.delete(userFriendRef);
+      }
+      if (friendUserSnap.exists()) {
+        transaction.delete(friendUserRef);
+      }
+
+
+      const notifRef = collection(db, "users", friendId, "notifications");
+
+      transaction.set(doc(notifRef), {
+        type: "friend_removed",
+        fromUserId: userId,
+        fromUserName: userName,
+        fromUserAvatar: userData.photoURL || null,
+        message: `${userName} removed you as a friend.`,
+        isRead: false,
+        createdAt: serverTimestamp(),
+      });
+
+    });
+
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
 }
 
-export async function addNotification(userId: string, message: string, data?: any): Promise<void> {
-    const refPath = `users/${userId}/notifications`;
-    try {
-        await addDoc(collection(db, 'users', userId, 'notifications'), { message, createdAt: new Date().toISOString(), read: false, ...(data && { data }) });
-    } catch (error) {
-        console.error("Failed to add notification:", error);
-    }
-}
+
+
 
 export function getNotifications(userId: string, callback: (notifications: any[]) => void): () => void {
     const refPath = `users/${userId}/notifications`;

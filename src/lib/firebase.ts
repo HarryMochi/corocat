@@ -18,13 +18,14 @@ import {
     deleteDoc,
     FieldValue
 } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 import { Course } from './types';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  storageBucket: process.env.NNEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
@@ -33,12 +34,12 @@ const firebaseConfig = {
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-
-const usersCollection = collection(db, 'users');
-const notificationsCollection = collection(db, 'notifications');
+export const storage = getStorage(app)
+export const usersCollection = collection(db, 'users');
+export const notificationsCollection = collection(db, 'notifications');
 const coursesCollection = collection(db, 'courses');
 
-async function getUserByEmail(email: string) {
+export async function getUserByEmail(email: string) {
     const q = query(usersCollection, where("email", "==", email));
     const querySnapshot = await getDocs(q);
     if (querySnapshot.empty) {
@@ -47,48 +48,64 @@ async function getUserByEmail(email: string) {
     return querySnapshot.docs[0];
 }
 
-export async function sendFriendRequest(fromUserId: string, toUserEmail: string) {
-    const fromUserRef = doc(usersCollection, fromUserId);
-    const fromUserSnap = await getDoc(fromUserRef);
-
-    if (!fromUserSnap.exists()) {
-        throw new Error("Sender user not found");
-    }
-    const fromUserData = fromUserSnap.data();
-
+export async function sendFriendRequest(
+  fromUserId: string,
+  toUserEmail: string,
+  fromUserName: string
+): Promise<{ success: boolean; message: string }> {
+  try {
     const toUser = await getUserByEmail(toUserEmail);
-    if (!toUser) {
-        throw new Error("User with that email does not exist.");
+    if(!auth.currentUser){
+        return {success:false,message:"Please Authenticate"}
     }
+    if (!toUser){
+        console.log("1")
+        return { success: false, message: "User not found." };}
+
     const toUserId = toUser.id;
 
-    if (fromUserId === toUserId) {
-        throw new Error("You cannot send a friend request to yourself.");
-    }
-    
-    const toUserData = toUser.data();
-    if (toUserData.friends?.includes(fromUserId)) {
-        throw new Error("You are already friends with this user.");
+    if (fromUserId === toUserId){
+         console.log("2")
+      return { success: false, message: "Cannot friend yourself." };
     }
 
-    const q = query(notificationsCollection, where("type", "==", "FRIEND_REQUEST"), where("fromUserId", "==", fromUserId), where("toUserId", "==", toUserId));
-    const existingRequest = await getDocs(q);
-    if(!existingRequest.empty) {
-        throw new Error("Friend request already sent.");
+    // Check if friend request already exists
+    const reqQ = query(
+      collection(db, "friendRequests"),
+      where("from", "==", fromUserId),
+      where("to", "==", toUserId)
+    );
+    const exists = await getDocs(reqQ);
+    if (!exists.empty){
+         console.log("3")
+      return { success: false, message: "Friend request already sent." };
     }
 
-
-    await addDoc(notificationsCollection, {
-        fromUserId,
-        fromUserName: fromUserData.displayName,
-        toUserId,
-        type: 'FRIEND_REQUEST',
-        status: 'pending',
-        createdAt: serverTimestamp(),
+    // Create friend request
+    await addDoc(collection(db, "friendRequests"), {
+      from: fromUserId,
+      to: toUserId,
+      status: "pending",
+      createdAt: serverTimestamp(),
     });
 
-    return { success: true, message: "Friend request sent successfully!" };
+    // Create notification for receiver
+    await addDoc(collection(db, "users", toUserId, "notifications"), {
+      type: "FRIEND_REQUEST",
+      fromUserId: fromUserId,
+      fromUserName: fromUserName,
+      toUserId: toUserId,
+      status: "pending",
+      createdAt: serverTimestamp(),
+    });
+ console.log("4")
+    return { success: true, message: "Friend request sent!" };
+  } catch (error: any) {
+    console.error("Error in sendFriendRequest:", error);
+    return { success: false, message: error?.message || "Unknown error" };
+  }
 }
+
 
 export async function acceptFriendRequest(notificationId: string) {
     const notificationRef = doc(notificationsCollection, notificationId);

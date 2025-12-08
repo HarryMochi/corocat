@@ -7,25 +7,39 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from './ui/button';
-import { UsersIcon, X } from 'lucide-react';
+import { Loader2, UsersIcon, X } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import { getFriendRequests, acceptFriendRequest, rejectFriendRequest, sendFriendRequest, getFriends, removeFriend } from '@/app/actions';
+import {  removeFriend } from "@/lib/firestore";
+import { sendFriendRequest } from '@/app/sendFriendRequestClient';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Input } from '@/components/ui/input';
 import { User } from '@/lib/types';
 import { Loader } from './loader';
 import { ConfirmationDialog } from './confirmation-dialog';
-
+import { getAuth } from 'firebase/auth';
+import { getFriendRequests } from '@/app/getFriendRequestClient';
+import { acceptFriendRequest,rejectFriendRequest } from '@/lib/firestore';
+import { getFriends } from '@/app/getFriendClient';
+import { getUserById } from '@/app/getUserByIdClient';
 // Friend Request Interface
 interface FriendRequest {
   id: string;
-  senderId: string;
-  senderDisplayName: string;
-  senderAvatar: string;
+  from: string;
+  to:string;
+  status:string;
+
 }
 
+interface FriendRequestDetails {
+  displayName:string;
+  email:string;
+  id:string;
+  lastLogin:Date;
+  photoURL:string;
+  uid:string;
+}
 // Add Friend Form Schema
 const formSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
@@ -34,18 +48,23 @@ const formSchema = z.object({
 // Combined Socials Modal Component
 export function SocialsModal({ children }: { children?: React.ReactNode }) {
   const { user } = useAuth();
+  const auth = getAuth()
+  const currentUser = auth.currentUser
   const { toast } = useToast();
 
   // Friend Requests State
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
-
+  const [requestsDetails,setRequestsDetails] = useState<FriendRequestDetails[]>([])
   // Friends List State
   const [friends, setFriends] = useState<(User & { id: string })[]>([]);
   const [isLoadingFriends, setIsLoadingFriends] = useState(false);
 
   // Add Friend State
   const [isSendingRequest, setIsSendingRequest] = useState(false);
+  const [isAcceptingRequest,setAcceptingRequest] = useState(false)
+  const [rejectingRequest,setRejectingRequest] = useState(false)
+  const [isRemovingFriend,setIsRemovingFriend] = useState(false)
   const addFriendForm = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -71,10 +90,12 @@ export function SocialsModal({ children }: { children?: React.ReactNode }) {
 
     try {
         const [requestsData, friendsData] = await Promise.all([
-            getFriendRequests(user.uid),
-            getFriends(user.uid)
+            await getFriendRequests(user.uid),
+            await getFriends(user.uid)
         ]);
+        
         setRequests(requestsData);
+
         setFriends(friendsData as (User & { id: string })[]);
     } catch (error) {
         console.error("Error fetching social data:", error);
@@ -84,27 +105,55 @@ export function SocialsModal({ children }: { children?: React.ReactNode }) {
         setIsLoadingFriends(false);
     }
   }
+useEffect(() => {
+  async function loadUsers() {
+    if (requests.length === 0) {
+      setRequestsDetails([]); // optional: clear when no requests
+      return;
+    }
 
+    try {
+      const users: FriendRequestDetails[] = await Promise.all(
+        requests.map((req) => getUserById(req.from))
+      );
+      
+      setRequestsDetails(users);
+    } catch (err) {
+      console.error("Error loading request users:", err);
+    }
+  }
+
+  loadUsers();
+}, [requests]);
+
+useEffect(()=>{console.log(friends,"This is the friends")},[friends])
   // Friend Request Actions
-  const handleAccept = async (senderId: string) => {
+  const handleAccept = async (requestId: string) => {
     if (!user) return;
     try {
-      await acceptFriendRequest(senderId, user.uid);
+      setAcceptingRequest(true)
+      await acceptFriendRequest(requestId);
       toast({ title: 'Success', description: 'Friend request accepted!' });
       fetchSocialsData(); // Refetch all data
     } catch (error: any) {
+      console.log(error)
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }finally{
+      setAcceptingRequest(false)
     }
   };
 
-  const handleReject = async (senderId: string) => {
+  const handleReject = async (requestId: string) => {
     if (!user) return;
     try {
-      await rejectFriendRequest(senderId, user.uid);
-      setRequests(requests.filter(req => req.senderId !== senderId));
+      setRejectingRequest(true)
+      await rejectFriendRequest(requestId);
+      setRequests(requests.filter(req => req.id !== requestId));
       toast({ title: 'Success', description: 'Friend request rejected.' });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }finally{
+      setRejectingRequest(false)
     }
   };
   
@@ -117,38 +166,38 @@ export function SocialsModal({ children }: { children?: React.ReactNode }) {
   const handleRemoveFriend = async () => {
       if (!user || !friendToRemove) return;
       try {
+        setIsRemovingFriend(true)
           await removeFriend(user.uid, friendToRemove);
           toast({ title: 'Success', description: 'Friend removed.' });
           fetchSocialsData(); // Refetch all data
       } catch (error: any) {
           toast({ title: 'Error', description: 'Could not remove friend.', variant: 'destructive' });
+      }finally{
+        setIsRemovingFriend(false)
       }
   };
 
   // Add Friend Action
-  async function onAddFriendSubmit(values: z.infer<typeof formSchema>) {
-    if (!user) {
-      toast({ title: 'Error', description: 'You must be logged in to send a friend request.', variant: 'destructive' });
-      return;
-    }
-
-    setIsSendingRequest(true);
-    try {
-      const sender = {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-        avatar: user.avatar,
-      };
-      await sendFriendRequest(sender as User, values.email);
-      toast({ title: 'Success', description: 'Friend request sent!' });
-      addFriendForm.reset();
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    } finally {
-      setIsSendingRequest(false);
-    }
+async function onAddFriendSubmit(values: z.infer<typeof formSchema>) {
+  if (!currentUser) {
+    toast({ title: 'Error', description: 'You must be logged in.', variant: 'destructive' });
+    return;
   }
+
+  setIsSendingRequest(true);
+  try {
+    const response = await sendFriendRequest(currentUser.uid, values.email, currentUser.displayName || "Display",currentUser.photoURL);
+    toast({ title: response.success ? "Success" : "Error", description: response.message });
+    fetchSocialsData()
+    addFriendForm.reset();
+  } catch (error: any) {
+    console.log(error)
+    toast({ title: 'Error', description: error.message, variant: 'destructive' });
+  } finally {
+    setIsSendingRequest(false);
+  }
+}
+
 
   return (
     <>
@@ -207,18 +256,19 @@ export function SocialsModal({ children }: { children?: React.ReactNode }) {
                     <p className='text-muted-foreground'>You have no new friend requests.</p>
                   ) : (
                     <div className="space-y-4">
-                      {requests.map(request => (
-                        <div key={request.id} className="flex items-center justify-between">
+                      {requests.map((request,key) => (
+                        <div key={request?.id} className="flex items-center justify-between">
+                        
                           <div className="flex items-center space-x-4">
                             <Avatar>
-                              <AvatarImage src={request.senderAvatar} alt={request.senderDisplayName || 'User Avatar'} />
-                              <AvatarFallback>{getInitials(request.senderDisplayName)}</AvatarFallback>
+                              <AvatarImage src={requestsDetails[key]?.photoURL} alt={ 'User Avatar'} />
+                              {!requestsDetails[key]?.photoURL && <AvatarFallback>{getInitials(requestsDetails[key]?.displayName)}</AvatarFallback>}
                             </Avatar>
-                            <span>{request.senderDisplayName || 'Unnamed User'}</span>
+                            <span>{requestsDetails[key]?.displayName || "Unnamed User"}</span>
                           </div>
                           <div className="space-x-2">
-                            <Button onClick={() => handleAccept(request.senderId)} size="sm" variant={"secondary"}>Accept</Button>
-                            <Button onClick={() => handleReject(request.senderId)} size="sm" variant="destructive">Reject</Button>
+                            <Button onClick={() => handleAccept(request?.id)} size="sm" variant={"secondary"} disabled={isAcceptingRequest}>{isAcceptingRequest ? <Loader2 className='w-4 h-4 animate-spin text-black'/> : "Accept"}</Button>
+                            <Button onClick={() => handleReject(request?.id)} size="sm" variant="destructive" disabled={rejectingRequest}>{rejectingRequest ? <Loader2 className='w-4 h-4 animate-spin text-white'/> : "Reject"}</Button>
                           </div>
                         </div>
                       ))}
@@ -243,16 +293,18 @@ export function SocialsModal({ children }: { children?: React.ReactNode }) {
                   ) : (
                       <div className="space-y-4">
                           {friends.map(friend => (
-                              <div key={friend.id} className="flex items-center justify-between">
+                            
+                              <div key={friend?.id} className="flex items-center justify-between">
+                                
                                   <div className="flex items-center space-x-4">
                                       <Avatar>
-                                          <AvatarImage src={friend.avatar} alt={friend.displayName || 'User Avatar'} />
-                                          <AvatarFallback>{getInitials(friend.displayName)}</AvatarFallback>
-                                      </Avatar>
-                                      <span>{friend.displayName || 'Unnamed User'}</span>
+                                          <AvatarImage src={friend?.photoURL}  />
+                                          {!friend?.photoURL && <AvatarFallback>{getInitials(friend?.displayName)}</AvatarFallback>}
+                                      </Avatar> 
+                                      <span>{friend?.displayName || 'Unnamed User'}</span>
                                   </div>
-                                  <Button onClick={() => confirmRemoveFriend(friend.id)} size="icon" variant="ghost">
-                                      <X className="h-4 w-4"/>
+                                  <Button onClick={() => confirmRemoveFriend(friend?.id)} size="icon" variant="ghost" disabled={isRemovingFriend}>
+                                     {isRemovingFriend ? <Loader2 className='w-4 h-4 text-black animate-spin'/>  : <X className="h-4 w-4"/>}
                                   </Button>
                               </div>
                           ))}

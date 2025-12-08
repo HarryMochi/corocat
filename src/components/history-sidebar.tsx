@@ -62,7 +62,7 @@ export default function HistorySidebar({
       <div className="p-4 space-y-2">
         <SocialsModal>
           <Button variant="outline" className="w-full">
-            <Users className="mr-2 h-4 w-4" /> Social
+            <Users className="mr-2 h-4 w-4" /> Socials
           </Button>
         </SocialsModal>
         <Button onClick={onCreateNew} className="w-full"><Plus className="mr-2 h-4 w-4" /><span>New Course</span></Button>

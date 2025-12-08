@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
+import { supabase } from '@/lib/supabase';
 import { getCoursesForUser, updateUserProfile } from '@/lib/firestore';
-import { sendFriendRequest } from '@/app/actions';
+import { sendFriendRequest } from '@/app/sendFriendRequestClient';
 import { Loader2, ArrowLeft, Github, Twitter, Linkedin, BookOpen, Edit, Youtube, Globe, UserPlus, Check, Upload } from 'lucide-react';
 import LearnLayout from '@/components/learn-layout';
 import HistorySidebar from '@/components/history-sidebar';
@@ -18,8 +19,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { toast } from '@/hooks/use-toast';
+import { updateProfile } from 'firebase/auth';
+import { ref, uploadString, getDownloadURL } from "firebase/storage";
+import {storage} from '@/lib/firebase'
+import { uploadToCloudinary } from '@/lib/uploadToCloudinary';
+import { AlertDialogHeader, AlertDialogFooter,AlertDialog,AlertDialogAction,AlertDialogCancel,AlertDialogDescription,AlertDialogTitle,AlertDialogContent } from '@/components/ui/alert-dialog';
 
 async function getUserProfileData(userId: string): Promise<any> {
     const userRef = doc(db, "users", userId);
@@ -59,6 +66,7 @@ export default function ProfilePage() {
     const [pageLoading, setPageLoading] = useState(true);
     const [isOwner, setIsOwner] = useState(false);
     const [areAlreadyFriends, setAreAlreadyFriends] = useState(false);
+    const [confirmOpen, setConfirmOpen] = useState(false);
 
     // Name
     const [newDisplayName, setNewDisplayName] = useState("");
@@ -82,6 +90,12 @@ export default function ProfilePage() {
     const [pfpPreview, setPfpPreview] = useState<string | null>(null);
     const [isPfpOpen, setIsPfpOpen] = useState(false);
     const [isSavingPfp, setIsSavingPfp] = useState(false);
+    const [showConfirm, setShowConfirm] = useState(false);
+
+const handleConfirmSavePfp = () => {
+  setShowConfirm(false);
+  handleSavePfp(); // Your original save function
+};
 
     const fetchProfileData = useCallback(async () => {
         if (!userId) return;
@@ -119,119 +133,284 @@ export default function ProfilePage() {
         if (isOwner) fetchSidebarCourses();
     }, [isOwner, fetchProfileData, fetchSidebarCourses]);
 
-    const handleSaveDisplayName = async () => {
-        if (!user || !newDisplayName) return;
-        await updateUserProfile(user.uid, { displayName: newDisplayName });
-        await fetchProfileData();
-        setIsNameEditing(false);
+
+
+const handleSaveDisplayName = async () => {
+  if (!user || !newDisplayName) return;
+
+  try {
+    // 1. Update Firestore
+    await updateUserProfile(user.uid, { displayName: newDisplayName });
+
+    // 2. Update Firebase Auth Profile
+    await updateProfile(user, { displayName: newDisplayName });
+
+    toast({
+      title: "Success",
+      description: "Display name updated!",
+    });
+
+    // 3. Refresh UI
+    await fetchProfileData();
+    setIsNameEditing(false);
+
+  } catch (err: any) {
+    toast({
+      title: "Error",
+      description: err.message,
+      variant: "destructive",
+    });
+  }
+};
+
+
+const handleSaveAboutMe = async () => {
+  if (!user) return;
+
+  try {
+    await updateUserProfile(user.uid, { aboutMe });
+    await fetchProfileData();
+    setAboutMeOpen(false);
+    toast({ title: "Success", description: "About Me updated!" });
+  } catch (err: any) {
+    console.error(err);
+    toast({ title: "Error", description: err.message || "Failed to update About Me.", variant: "destructive" });
+  }
+};
+
+const handleSaveSocials = async () => {
+  if (!user) return;
+
+  const errors: { [key in keyof typeof socials]: string } = { github: '', linkedin: '', twitter: '', youtube: '', website: '' };
+  let hasError = false;
+
+  (Object.keys(socials) as Array<keyof typeof socials>).forEach(key => {
+    const url = socials[key];
+    if (url && !url.startsWith('https://')) {
+      errors[key] = "URL must start with https://";
+      hasError = true;
+    }
+  });
+
+  setSocialsErrors(errors);
+  if (hasError) return;
+
+  try {
+    await updateUserProfile(user.uid, { socials });
+    await fetchProfileData();
+    setSocialsOpen(false);
+    toast({ title: "Success", description: "Social links updated!" });
+  } catch (err: any) {
+    console.error(err);
+    toast({ title: "Error", description: err.message || "Failed to update social links.", variant: "destructive" });
+  }
+};
+
+const handleSavePfp = async () => {
+  if (!user || !pfpPreview) return;
+
+  setIsSavingPfp(true);
+
+  try {
+    // 1️⃣ Fetch Firestore user document
+    const userRef = doc(db, "users", user.uid);
+    const snap = await getDoc(userRef);
+
+    let photoUploadCount = snap.data()?.photoUploadCount || 0;
+    let lastPhotoUpload = snap.data()?.lastPhotoUpload
+      ? new Date(snap.data().lastPhotoUpload)
+      : null;
+
+    const now = new Date();
+    const sameMonth =
+      lastPhotoUpload &&
+      lastPhotoUpload.getMonth() === now.getMonth() &&
+      lastPhotoUpload.getFullYear() === now.getFullYear();
+
+    // 2️⃣ Enforce monthly upload limit
+    if (sameMonth && photoUploadCount >= 3) {
+      toast({
+        title: "Upload limit reached",
+        description: "You can upload only 3 profile pictures per month.",
+        variant: "destructive",
+      });
+      setIsSavingPfp(false);
+      return;
+    }
+
+    // 3️⃣ Convert base64 to Blob
+    const base64 = pfpPreview.split(",")[1];
+    const blob = new Blob(
+      [Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))],
+      { type: "image/jpeg" }
+    );
+
+    const filePath = `pfps/${user.uid}.jpg`;
+
+    // 4️⃣ Upload to Supabase Storage
+    const { data, error: uploadError } = await supabase.storage
+      .from("corocat")
+      .upload(filePath, blob, {
+        cacheControl: "3600",
+        upsert: true,
+        contentType: "image/jpeg",
+      });
+
+    if (uploadError) {
+      console.error("Supabase upload error:", uploadError);
+      throw uploadError;
+    }
+
+    // 5️⃣ Get public URL + cache buster
+    const { data: urlData } = supabase.storage
+      .from("corocat")
+      .getPublicUrl(filePath);
+
+    const imageUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
+    // 6️⃣ Update Firestore
+    await updateDoc(userRef, {
+      photoURL: imageUrl,
+      photoUploadCount: sameMonth ? photoUploadCount + 1 : 1,
+      lastPhotoUpload: now.toISOString(),
+    });
+
+    // 7️⃣ Update Firebase Auth profile
+    await updateProfile(user, { photoURL: imageUrl });
+
+    // 8️⃣ Refresh frontend
+    await fetchProfileData();
+
+    toast({
+      title: "Success",
+      description: "Profile picture updated!",
+    });
+  } catch (err: any) {
+    toast({
+      title: "Error",
+      description: err.message || "Failed to update profile picture.",
+      variant: "destructive",
+    });
+  } finally {
+    setIsSavingPfp(false);
+  }
+};
+
+
+const handleSaveFavoriteCourses = async () => {
+  if (!user) return;
+
+  try {
+    await updateUserProfile(user.uid, { favoriteCourses: selectedCourses });
+    await fetchProfileData();
+    setCoursesOpen(false);
+    toast({ title: "Success", description: "Favorite courses updated!" });
+  } catch (err: any) {
+    console.error(err);
+    toast({ title: "Error", description: err.message || "Failed to update favorite courses.", variant: "destructive" });
+  }
+};
+const handlePfpFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0] ?? null;
+
+  if (!file) return;
+
+  // Image Size Check (2MB max)
+  if (file.size > 2 * 1024 * 1024) {
+    toast({
+      title: "File Too Large",
+      description: "Profile picture must be less than 2MB.",
+      variant: "destructive",
+    });
+    e.target.value = '';
+    return;
+  }
+
+  // File Type Check
+  if (!file.type.startsWith('image/')) {
+    toast({
+      title: "Invalid File",
+      description: "Please select a valid image file.",
+      variant: "destructive",
+    });
+    e.target.value = '';
+    return;
+  }
+
+  try {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPfpPreview(reader.result as string);
     };
+    reader.readAsDataURL(file);
 
-    const handleSaveAboutMe = async () => {
-        if (!user) return;
-        await updateUserProfile(user.uid, { aboutMe });
-        await fetchProfileData();
-        setAboutMeOpen(false);
-    };
+    setProfilePicture(file);
 
-    const handleSaveSocials = async () => {
-        if (!user) return;
-        const errors = { github: '', linkedin: '', twitter: '', youtube: '', website: '' };
-        let hasError = false;
+    toast({
+      title: "Preview Loaded",
+      description: "Your new profile picture preview is ready.",
+    });
 
-        (Object.keys(socials) as Array<keyof typeof socials>).forEach(key => {
-            const url = socials[key];
-            if (url && !url.startsWith('https://')) {
-                errors[key] = "URL must start with https://";
-                hasError = true;
-            }
-        });
+  } catch (err: any) {
+    console.error("Image load error:", err);
+    toast({
+      title: "Error",
+      description: "Failed to load image preview.",
+      variant: "destructive",
+    });
+  }
+};
+const getInitials = (name: string | null | undefined) => {
+  if (!name || typeof name !== "string") return "U";
 
-        setSocialsErrors(errors);
-        if (hasError) return;
+  const parts = name.trim().split(" ").filter(Boolean);
 
-        await updateUserProfile(user.uid, { socials });
-        await fetchProfileData();
-        setSocialsOpen(false);
-    };
+  // Single word → return first letter
+  if (parts.length === 1) {
+    return parts[0][0].toUpperCase();
+  }
 
-    const handlePfpFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0] ?? null;
-        
-        if (file) {
-            if (file.size > 2 * 1024 * 1024) { // 2MB limit for Base64
-                alert('File size must be less than 2MB');
-                e.target.value = '';
-                return;
-            }
-            if (!file.type.startsWith('image/')) {
-                alert('Please select an image file');
-                e.target.value = '';
-                return;
-            }
+  // Multiple words → first + last initials
+  const first = parts[0][0].toUpperCase();
+  const last = parts[parts.length - 1][0].toUpperCase();
 
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setPfpPreview(reader.result as string);
-            };
-            reader.readAsDataURL(file);
-        }
-        
-        setProfilePicture(file);
-    };
+  return first + last;
+};
+const handleCourseSelection = (courseTopic: string) => {
+  setSelectedCourses((prev) => {
+    const isSelected = prev.includes(courseTopic);
 
-    const handleSavePfp = async () => {
-        if (!user || !pfpPreview) return;
+    if (isSelected) {
+      return prev.filter((topic) => topic !== courseTopic);
+    }
+
     
-        setIsSavingPfp(true);
-        try {
-            const photoURL = pfpPreview; // Base64 string
-    
-            // 1. Update Firestore
-            await updateUserProfile(user.uid, { photoURL });
-    
-            // 2. Refetch profile data
-            await fetchProfileData();
-            
-            // 3. Close dialog and reset
-            setIsPfpOpen(false);
-            setProfilePicture(null);
-            setPfpPreview(null);
+    if (prev.length >= 3) {
+      toast({
+        title: "Limit Reached",
+        description: "You can select up to 3 favorite course topics.",
+        variant: "destructive",
+      });
+      return prev;
+    }
 
-        } catch (err) {
-            console.error("Error saving PFP:", err);
-            alert('Failed to update profile picture. Please try again.');
-        } finally {
-            setIsSavingPfp(false);
-        }
-    };
 
-    const handleSaveFavoriteCourses = async () => {
-        if (!user) return;
-        await updateUserProfile(user.uid, { favoriteCourses: selectedCourses });
-        await fetchProfileData();
-        setCoursesOpen(false);
-    };
+    return [...prev, courseTopic];
+  });
+};
 
-    const handleCourseSelection = (courseTopic: string) => {
-        const isSelected = selectedCourses.includes(courseTopic);
-        if (isSelected) {
-            setSelectedCourses(current => current.filter(topic => topic !== courseTopic));
-        } else if (selectedCourses.length < 3) {
-            setSelectedCourses(current => [...current, courseTopic]);
-        }
-    };
+const handleAddFriend = async () => {
+  if (!user || !profile) return;
 
-    const handleAddFriend = async () => {
-        if (!user || !profile) return;
-        await sendFriendRequest(user as User, profile.displayName as string);
-        setAreAlreadyFriends(true);
-    };
-
-    const getInitials = (name: string | null | undefined) => {
-        if (!name) return 'U';
-        const names = name.split(' ');
-        return names.length > 1 ? names[0][0] + names[names.length - 1][0] : name[0];
-    };
+  try {
+    await sendFriendRequest(user.uid, profile.displayName as string, user.email);
+    setAreAlreadyFriends(true);
+    toast({ title: "Success", description: "Friend request sent!" });
+  } catch (err: any) {
+    console.error(err);
+    toast({ title: "Error", description: err.message || "Failed to send friend request.", variant: "destructive" });
+  }
+};
 
     const hasSocials = profile?.socials && Object.values(profile.socials).some(s => s);
 
@@ -305,7 +484,7 @@ export default function ProfilePage() {
                                 </div>
                                 <p className="text-sm text-destructive font-bold text-center mb-4">NOTE: Inappropriate profile pictures will result in a permanent ban from this website.</p>
                                 <Input type="file" accept="image/*" onChange={handlePfpFileChange} className="mb-4"/>
-                                <Button onClick={handleSavePfp} disabled={!profilePicture || isSavingPfp}>
+                                <Button onClick={()=>{setShowConfirm(true)}} disabled={!profilePicture || isSavingPfp}>
                                     {isSavingPfp ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save"}
                                 </Button>
                             </DialogContent>
@@ -365,7 +544,7 @@ export default function ProfilePage() {
                     <CardHeader className="flex flex-row items-center justify-between">
                         <CardTitle className="font-headline text-2xl text-primary">My Socials</CardTitle>
                         {isOwner && (
-                            <Dialog open={isSocialsOpen} onOpenchange={setSocialsOpen}>
+                            <Dialog open={isSocialsOpen} onOpenChange={setSocialsOpen}>
                                 <DialogTrigger asChild><Button variant="ghost" size="icon"><Edit className="h-5 w-5" /></Button></DialogTrigger>
                                 <DialogContent>
                                     <DialogHeader><DialogTitle>Edit Social Links</DialogTitle></DialogHeader>
@@ -433,6 +612,25 @@ export default function ProfilePage() {
                     </CardContent>
                 </Card>
             </div>
+            <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+  <AlertDialogContent>
+    <AlertDialogHeader>
+      <AlertDialogTitle>Confirm Image Upload</AlertDialogTitle>
+      <AlertDialogDescription>
+        You can only change your profile picture <b>three times per month</b>.
+        Are you sure you want to continue?
+      </AlertDialogDescription>
+    </AlertDialogHeader>
+
+    <AlertDialogFooter>
+      <AlertDialogCancel>Cancel</AlertDialogCancel>
+      <AlertDialogAction onClick={handleConfirmSavePfp}>
+        Yes, continue
+      </AlertDialogAction>
+    </AlertDialogFooter>
+  </AlertDialogContent>
+</AlertDialog>
+
         </div>
     );
 

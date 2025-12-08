@@ -1,10 +1,9 @@
-
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { Bell, BellRing } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import { deleteNotification, acceptSharedCourse } from '@/app/actions';
+import { acceptSharedCourse } from '@/app/actions';
 import { useNotifications } from '@/hooks/use-notifications';
 import type { Notification } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -12,7 +11,8 @@ import { Button } from './ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { Loader } from './loader';
-
+import { clearAllNotifications } from '@/lib/clearNotification';
+import { deleteNotification } from '@/lib/deleteNotification';
 interface NotificationBellProps {
     onCourseAccepted: (newCourseId: string) => Promise<void>;
 }
@@ -24,18 +24,29 @@ export function NotificationBell({ onCourseAccepted }: NotificationBellProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isActing, setIsActing] = useState<string | null>(null);
 
+    // 🔥 SORTED Notifications (newest first)
+    const sortedNotifications = [...notifications].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+
     const handleAcceptCourse = async (notification: Notification) => {
         if (!user || !notification.relatedEntityId) return;
         setIsActing(notification.id);
         try {
-            const newCourseId = await acceptSharedCourse(user.uid, notification.id, notification.relatedEntityId);
-            toast({ title: "Course Added!", description: `'${notification.relatedEntityName}' has been added to your courses.` });
-            
-            // This is the fix. We call the passed-in function to refetch the courses
-            // and then navigate. The parent component will handle the navigation.
-            await onCourseAccepted(newCourseId);
+            const newCourseId = await acceptSharedCourse(
+                user.uid,
+                notification.id,
+                notification.relatedEntityId
+            );
 
+            toast({
+                title: "Course Added!",
+                description: `'${notification.relatedEntityName}' has been added to your courses.`,
+            });
+
+            await onCourseAccepted(newCourseId);
             setIsOpen(false);
+
         } catch (error: any) {
             toast({ title: "Error", description: error.message, variant: "destructive" });
         } finally {
@@ -48,16 +59,37 @@ export function NotificationBell({ onCourseAccepted }: NotificationBellProps) {
         try {
             await deleteNotification(user.uid, notificationId);
         } catch (error) {
-            toast({ title: "Error", description: "Could not dismiss notification.", variant: "destructive" });
+            toast({
+                title: "Error",
+                description: "Could not dismiss notification.",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const clearAll = async () => {
+        if (!user) return;
+        try {
+            for (const n of sortedNotifications) {
+                await clearAllNotifications(user.uid);
+            }
+        } catch {
+            toast({
+                title: "Error",
+                description: "Could not clear notifications.",
+                variant: "destructive",
+            });
         }
     };
 
     const getInitials = (name: string | null | undefined) => {
         if (!name) return 'U';
         const names = name.split(' ');
-        return names.length > 1 ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase() : name[0].toUpperCase();
+        return names.length > 1
+            ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase()
+            : name[0].toUpperCase();
     };
-    
+
     const unreadCount = notifications.filter(n => !n.isRead).length;
 
     return (
@@ -74,49 +106,137 @@ export function NotificationBell({ onCourseAccepted }: NotificationBellProps) {
                     )}
                 </Button>
             </PopoverTrigger>
+
             <PopoverContent className="w-80 md:w-96" align="end">
-                <div className="p-4">
+                <div className="p-4 flex items-center justify-between">
                     <h4 className="font-medium leading-none">Notifications</h4>
+
+                    {sortedNotifications.length > 0 && (
+                        <Button size="sm" variant="outline" onClick={clearAll}>
+                            Clear All
+                        </Button>
+                    )}
                 </div>
+
                 {isLoading ? (
-                     <div className="flex justify-center items-center h-24">
+                    <div className="flex justify-center items-center h-24">
                         <Loader />
                     </div>
-                ) : notifications.length === 0 ? (
-                    <p className="p-4 text-sm text-muted-foreground">You have no new notifications.</p>
+                ) : sortedNotifications.length === 0 ? (
+                    <p className="p-4 text-sm text-muted-foreground">
+                        You have no new notifications.
+                    </p>
                 ) : (
                     <div className="max-h-96 overflow-y-auto">
-                        {notifications.map(n => (
-                            <div key={n.id} className="p-3 border-b last:border-b-0 hover:bg-muted/50">
+                        {sortedNotifications.map(n => (
+                            <div
+                                key={n.id}
+                                className="p-3 border-b last:border-b-0 hover:bg-muted/50"
+                            >
                                 <div className="flex items-start space-x-3">
-                                     <Avatar className="h-8 w-8 mt-1">
-                                        <AvatarImage src={n.fromUserAvatar} alt={n.fromUserName} />
-                                        <AvatarFallback>{getInitials(n.fromUserName)}</AvatarFallback>
+                                    <Avatar className="h-8 w-8 mt-1">
+                                        <AvatarImage
+                                            src={n.fromUserAvatar}
+                                            alt={n.fromUserName}
+                                        />
+                                        <AvatarFallback>
+                                            {getInitials(n.fromUserName)}
+                                        </AvatarFallback>
                                     </Avatar>
+
                                     <div className="flex-1 text-sm">
                                         <p>
-                                            <span className="font-semibold">{n.fromUserName}</span>
-                                            {n.type === 'friend_request_accepted' && ' accepted your friend request.'}
-                                            {n.type === 'course_shared' && ` shared the course "${n.relatedEntityName}" with you.`}
+                                            <span className="font-semibold">
+                                                {n.fromUserName}
+                                            </span>
+
+                                            {n.type === 'friend_request' &&
+                                                ` sent you a friend request. ${n.message}`}
+
+                                            {n.type === 'friend_request_accepted' &&
+                                                ' accepted your friend request.'}
+                                             {n.type === 'friend_request_rejected' &&
+                                                ' rejected your friend request.'}
+                                             {n.type === 'friend_removed' &&
+                                                ' removed you from friends.'}
+
+                                            {n.type === 'course_shared' &&
+                                                ` shared the course "${n.relatedEntityName}" with you.`}
                                         </p>
+
                                         <p className="text-xs text-muted-foreground">
                                             {new Date(n.createdAt).toLocaleDateString()}
                                         </p>
                                     </div>
                                 </div>
-                                {n.type === 'course_shared' && (
+
+                                {n.type === 'friend_request' && (
                                     <div className="mt-2 flex justify-end space-x-2">
-                                        <Button size="sm" variant="outline" onClick={() => handleDeleteNotification(n.id)} disabled={isActing === n.id}>
-                                            Decline
-                                        </Button>
-                                        <Button size="sm" onClick={() => handleAcceptCourse(n)} disabled={isActing === n.id}>
-                                            {isActing === n.id ? <Loader className="h-4 w-4" /> : 'Accept'}
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => handleDeleteNotification(n.id)}
+                                        >
+                                            Dismiss
                                         </Button>
                                     </div>
                                 )}
+
+                                {n.type === 'course_shared' && (
+                                    <div className="mt-2 flex justify-end space-x-2">
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={isActing === n.id}
+                                            onClick={() => handleDeleteNotification(n.id)}
+                                        >
+                                            Decline
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            disabled={isActing === n.id}
+                                            onClick={() => handleAcceptCourse(n)}
+                                        >
+                                            {isActing === n.id ? (
+                                                <Loader className="h-4 w-4" />
+                                            ) : (
+                                                'Accept'
+                                            )}
+                                        </Button>
+                                    </div>
+                                )}
+
                                 {n.type === 'friend_request_accepted' && (
                                     <div className="mt-2 flex justify-end">
-                                        <Button size="sm" variant="ghost" onClick={() => handleDeleteNotification(n.id)}>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => handleDeleteNotification(n.id)}
+                                        >
+                                            Dismiss
+                                        </Button>
+                                    </div>
+                                )}
+
+                                   {n.type === 'friend_request_rejected' && (
+                                    <div className="mt-2 flex justify-end">
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => handleDeleteNotification(n.id)}
+                                        >
+                                            Dismiss
+                                        </Button>
+                                    </div>
+                                )}
+
+                                {n.type === 'friend_removed' && (
+                                    <div className="mt-2 flex justify-end">
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => handleDeleteNotification(n.id)}
+                                        >
                                             Dismiss
                                         </Button>
                                     </div>

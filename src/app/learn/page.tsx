@@ -235,9 +235,10 @@ export default function LearnPage() {
   return (
     <>
         <LearnLayout
-          sidebar={sidebar}
-          mainContent={mainContent}
-        />
+        sidebar={sidebar}
+        mainContent={mainContent} onCourseAccepted={function (newCourseId: string): Promise<void> {
+          throw new Error('Function not implemented.');
+        } }        />
         <ShareDialog 
             user={user}
             friends={friends}

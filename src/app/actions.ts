@@ -18,7 +18,12 @@ import {
     acceptSharedCourse as acceptSharedCourseFb,
     deleteNotification as deleteNotificationFb,
 } from '@/lib/firebase';
-import { serverTimestamp } from 'firebase/firestore';
+import { 
+  addDoc, collection, query, where, getDocs, serverTimestamp 
+} from "firebase/firestore";
+import { db } from "@/lib/firebase"; 
+import {getUserByEmail} from '@/lib/firebase'
+
 
 const execAsync = promisify(exec);
 
@@ -94,17 +99,7 @@ export async function executeCodeAction(code: string): Promise<{ output: string,
     }
 }
 
-export async function sendFriendRequest(fromUserId: string, toUserEmail: string): Promise<{ success: boolean; message: string }> {
-    try {
-        return await sendFriendRequestFb(fromUserId, toUserEmail);
-    } catch (error) {
-        console.error("Error in sendFriendRequest:", error);
-        if (error instanceof Error) {
-            return { success: false, message: error.message };
-        }
-        return { success: false, message: "An unknown error occurred." };
-    }
-}
+
 
 export async function acceptFriendRequest(notificationId: string): Promise<{ success: boolean; message: string }> {
     try {
