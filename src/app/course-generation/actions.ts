@@ -55,34 +55,57 @@ export async function generateStepContentAction(input: {
 // Action to prepare the generated course for saving
 export async function prepareCourseForSaving(data: {
   title: string;
-  course: any;
+  course: any[];
   masteryLevel: string;
   userId: string;
   userName: string;
+  courseMode: 'Solo' | 'Collaborative';
+  invitedFriends: User[];
 }): Promise<CourseData> {
 
-  const { title, course, masteryLevel, userId, userName } = data;
+  const {
+    title,
+    course,
+    masteryLevel,
+    userId,
+    userName,
+    courseMode,
+    invitedFriends,
+  } = data;
 
-  const steps: Step[] = course.map((step: any, index: number) => ({
-    stepNumber: index + 1,
-    title: step.title,
-    shortTitle: step.shortTitle,
-    description: step.description,
-    subSteps: step.subSteps,
-    completed: false,
-  }));
+  const steps =
+    courseMode === 'Collaborative'
+      ? []
+      : course.map((step: any, index: number) => ({
+          stepNumber: index + 1,
+          title: step.title,
+          shortTitle: step.shortTitle,
+          description: step.description,
+          subSteps: step.subSteps,
+          completed: false,
+        }));
 
-  const newCourseData: CourseData = {
+  return {
     topic: title,
-    depth: masteryLevel,
-    outline: JSON.stringify(course.map((s: any) => ({ step: s.step, title: s.title, description: s.description })), null, 2),
-    steps: steps,
-    notes: "",
+    depth: masteryLevel as CourseData['depth'],
+    courseMode,
+    invitedFriends: courseMode === 'Collaborative' ? invitedFriends : [],
+    outline:
+      courseMode === 'Collaborative'
+        ? undefined
+        : JSON.stringify(
+            course.map((s: any) => ({
+              step: s.step,
+              title: s.title,
+              description: s.description,
+            })),
+          ),
+    steps,
+    notes: '',
     createdAt: new Date().toISOString(),
-    userId: userId,
-    userName: userName,
-    isPublic: false,
+    userId,
+    userName,
+    isPublic: courseMode === 'Collaborative',
   };
-
-  return newCourseData;
 }
+

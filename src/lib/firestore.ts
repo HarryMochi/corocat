@@ -16,32 +16,91 @@ const toISOString = (date: any): string => {
 export async function addCourse(courseData: CourseData): Promise<string> {
   const refPath = 'courses';
   try {
-    const docRef = await addDoc(collection(db, 'courses'), { ...courseData, notes: courseData.notes ?? "" });
+    const docRef = await addDoc(
+      collection(db, 'courses'),
+      { ...courseData, notes: courseData.notes ?? "" }
+    );
     return docRef.id;
   } catch (error) {
-    if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
-        throw new FirestorePermissionError(`Firestore permission denied for operation 'create' on path '${refPath}'.`, refPath, 'create', courseData);
+    if (
+      error instanceof FirebaseError &&
+      (error.code === 'permission-denied' || error.code === 'unauthenticated')
+    ) {
+      throw new FirestorePermissionError(
+        `Firestore permission denied for operation 'create' on path '${refPath}'.`,
+        refPath,
+        'create',
+        courseData
+      );
     }
     throw error;
   }
 }
 
+
 export async function getCoursesForUser(userId: string): Promise<Course[]> {
-  const refPath = `courses`;
+  const refPath = 'courses';
+
   try {
-    const q = query(collection(db, 'courses'), where('userId', '==', userId), orderBy('createdAt', 'desc'));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        return { ...data, id: doc.id, createdAt: toISOString(data.createdAt) } as Course;
+    /* 1️⃣ Courses owned by user */
+    const ownedQuery = query(
+      collection(db, 'courses'),
+      where('userId', '==', userId)
+    );
+
+    /* 2️⃣ Fetch collaborative courses (filter later) */
+    const collaborativeQuery = query(
+      collection(db, 'courses'),
+      where('courseMode', '==', 'Collaborative')
+    );
+
+    const [ownedSnap, collabSnap] = await Promise.all([
+      getDocs(ownedQuery),
+      getDocs(collaborativeQuery),
+    ]);
+
+    /* 3️⃣ Filter collaborative courses by invitedFriends (User[]) */
+    const collaborativeDocs = collabSnap.docs.filter(doc => {
+      const data = doc.data();
+      return (
+        Array.isArray(data.invitedFriends) &&
+        data.invitedFriends.some((friend: User) => friend.uid === userId)
+      );
     });
+
+    /* 4️⃣ Merge & remove duplicates */
+    const allDocs = [...ownedSnap.docs, ...collaborativeDocs];
+
+    const unique = new Map<string, any>();
+    allDocs.forEach(doc => unique.set(doc.id, doc));
+
+    /* 5️⃣ Normalize data */
+    return Array.from(unique.values()).map(doc => {
+      const data = doc.data();
+
+      return {
+        ...data,
+        id: doc.id,
+        createdAt: toISOString(data.createdAt),
+      } as Course;
+    });
+
   } catch (error) {
-    if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
-        throw new FirestorePermissionError(`Firestore permission denied for operation 'list' on path '${refPath}'.`, refPath, 'list');
+    if (
+      error instanceof FirebaseError &&
+      (error.code === 'permission-denied' || error.code === 'unauthenticated')
+    ) {
+      throw new FirestorePermissionError(
+        `Firestore permission denied for operation 'list' on path '${refPath}'.`,
+        refPath,
+        'list'
+      );
     }
     throw error;
   }
 }
+
+
 
 export async function getCourseById(courseId: string): Promise<Course | null> {
     const refPath = `courses/${courseId}`;

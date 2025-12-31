@@ -126,7 +126,7 @@ useEffect(() => {
   loadUsers();
 }, [requests]);
 
-useEffect(()=>{console.log(friends,"This is the friends")},[friends])
+
   // Friend Request Actions
   const handleAccept = async (requestId: string) => {
     if (!user) return;
