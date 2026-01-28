@@ -1,4 +1,4 @@
-﻿node_modules/
+node_modules/
 .env.local
 <<<<<<< HEAD
 =======
@@ -7,3 +7,4 @@ out/
 build/
 .DS_Store
 >>>>>>> 79362ff40cfc5241539c6952fbf67d9aaedb87d5
+.env
