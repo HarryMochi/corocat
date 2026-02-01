@@ -35,6 +35,7 @@ export async function acceptSharedCourseClient(userId: string, notificationId: s
             userId,
             userName,
             createdAt: new Date().toISOString(),
+            originalCourseId: notifData.relatedEntityId, // Store the original course ID for shared whiteboard
         };
 
         // Only add outline if it exists and is not undefined

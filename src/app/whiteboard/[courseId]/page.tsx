@@ -77,7 +77,7 @@ export default function Home() {
     }}>
       <ContextWrapper>
         <RoomProvider
-          id={courseId}
+          id={course?.originalCourseId || courseId}
           initialPresence={{
             selection: [],
             cursor: null,
@@ -92,7 +92,7 @@ export default function Home() {
             layerIds: new LiveList([]),
           }}
         >
-          <RoomCanvas courseId={courseId} topic={course.topic} />
+          <RoomCanvas courseId={course?.originalCourseId || courseId} topic={course.topic} />
 
         </RoomProvider>
       </ContextWrapper>
