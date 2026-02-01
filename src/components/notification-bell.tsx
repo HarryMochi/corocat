@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Bell, BellRing } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import { acceptSharedCourse } from '@/app/actions';
+import { acceptSharedCourseClient } from '@/lib/client-actions';
 import { useNotifications } from '@/hooks/use-notifications';
 import type { Notification } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -33,7 +33,7 @@ export function NotificationBell({ onCourseAccepted }: NotificationBellProps) {
         if (!user) return;
         setIsActing(notification.id);
         try {
-            const result = await acceptSharedCourse(user.uid, notification.id);
+            const result = await acceptSharedCourseClient(user.uid, notification.id);
             if (!result.success) throw new Error(result.message);
 
             toast({
