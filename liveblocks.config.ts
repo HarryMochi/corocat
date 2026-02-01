@@ -9,6 +9,19 @@ declare global {
       camera: { x: number; y: number } | null;
       pencilDraft: [x: number, y: number, pressure: number][] | null;
       penColor: Color | null;
+      chatMessages?: Array<{
+        id: string;
+        userId: string;
+        userName: string;
+        userAvatar?: string;
+        message: string;
+        timestamp: number;
+      }>;
+      voiceState?: {
+        isInCall: boolean;
+        isMuted: boolean;
+        isSpeaking: boolean;
+      };
     };
     // The Storage tree for the room, for useMutation, useStorage, etc.
     Storage: {

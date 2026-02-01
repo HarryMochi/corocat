@@ -84,6 +84,8 @@ export default function Home() {
             camera: { x: 0, y: 0 },
             pencilDraft: null,
             penColor: null,
+            chatMessages: [],
+            voiceState: { isInCall: false, isMuted: false, isSpeaking: false },
           }}
           initialStorage={{
             layers: new LiveMap<string, LiveObject<Layer>>(),

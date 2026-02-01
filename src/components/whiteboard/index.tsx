@@ -45,6 +45,8 @@ import { TooltipProvider } from "../ui/tooltip";
 import ColorOptions from "./ColorOptions";
 import UserDisplay from "./userDisplay";
 import Navbar from "./navbar";
+import { WhiteboardChatPanel } from "./ChatPanel";
+import { WhiteboardVoicePanel } from "./VoicePanel";
 
 const MAX_LAYERS = 100;
 
@@ -56,6 +58,8 @@ export default function RoomCanvas({ courseId, topic }: { courseId: string; topi
     <div className={styles.container}>
       <ClientSideSuspense fallback={<Loading />}>
         <Canvas topic={topic} />
+        <WhiteboardChatPanel courseId={courseId} />
+        <WhiteboardVoicePanel courseId={courseId} />
       </ClientSideSuspense>
     </div>
 
@@ -85,6 +89,9 @@ function Canvas({ topic }: { topic: string }) {
     g: 142,
     b: 42,
   });
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState<Point | null>(null);
+
   const history = useHistory();
   const canUndo = useCanUndo();
   const canRedo = useCanRedo();
@@ -406,6 +413,14 @@ function Canvas({ topic }: { topic: string }) {
     (e: React.PointerEvent) => {
       const point = pointerEventToCanvasPoint(e, camera);
 
+      // Middle mouse button or space + click for panning
+      if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
+        setIsPanning(true);
+        setPanStart({ x: e.clientX - camera.x, y: e.clientY - camera.y });
+        e.preventDefault();
+        return;
+      }
+
       if (canvasState.mode === CanvasMode.Inserting) {
         return;
       }
@@ -423,7 +438,18 @@ function Canvas({ topic }: { topic: string }) {
   const onPointerMove = useMutation(
     ({ setMyPresence }, e: React.PointerEvent) => {
       e.preventDefault();
+
+      // Handle canvas panning
+      if (isPanning && panStart) {
+        setCamera({
+          x: e.clientX - panStart.x,
+          y: e.clientY - panStart.y,
+        });
+        return;
+      }
+
       const current = pointerEventToCanvasPoint(e, camera);
+
       if (canvasState.mode === CanvasMode.Pressing) {
         startMultiSelection(current, canvasState.origin);
       } else if (canvasState.mode === CanvasMode.SelectionNet) {
@@ -445,6 +471,8 @@ function Canvas({ topic }: { topic: string }) {
       startMultiSelection,
       translateSelectedLayers,
       updateSelectionNet,
+      isPanning,
+      panStart,
     ]
   );
 
@@ -455,6 +483,13 @@ function Canvas({ topic }: { topic: string }) {
 
   const onPointerUp = useMutation(
     ({ }, e) => {
+      // Reset panning
+      if (isPanning) {
+        setIsPanning(false);
+        setPanStart(null);
+        return;
+      }
+
       const point = pointerEventToCanvasPoint(e, camera);
 
       if (
@@ -484,6 +519,7 @@ function Canvas({ topic }: { topic: string }) {
       insertPath,
       setState,
       unselectLayers,
+      isPanning,
     ]
   );
 

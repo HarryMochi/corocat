@@ -208,7 +208,7 @@ export function pointerEventToCanvasPoint(
 ): Point {
   const rect = e.currentTarget.getBoundingClientRect();
   return {
-    x: Math.round(e.clientX - rect.left) - camera.x,
-    y: Math.round(e.clientY - rect.top) - camera.y,
+    x: (e.clientX - rect.left) - camera.x,
+    y: (e.clientY - rect.top) - camera.y,
   };
 }
