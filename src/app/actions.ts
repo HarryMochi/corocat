@@ -18,6 +18,7 @@ import {
     acceptSharedCourse as acceptSharedCourseFb,
     deleteNotification as deleteNotificationFb,
 } from '@/lib/firebase';
+import { acceptSharedCourse as acceptSharedCourseFirestore } from '@/lib/firestore';
 import {
     addDoc, collection, query, where, getDocs, serverTimestamp
 } from "firebase/firestore";
@@ -166,8 +167,7 @@ export async function updateUserProfile(userId: string, data: { displayName?: st
 
 export async function acceptSharedCourse(userId: string, notificationId: string): Promise<{ success: boolean; message: string }> {
     try {
-        const { acceptSharedCourse: acceptSharedCourseFs } = await import('@/lib/firestore');
-        return await acceptSharedCourseFs(userId, notificationId);
+        return await acceptSharedCourseFirestore(userId, notificationId);
     } catch (error) {
         console.error("Error accepting shared course:", error);
         if (error instanceof Error) {

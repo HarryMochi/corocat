@@ -638,21 +638,27 @@ export async function acceptSharedCourse(userId: string, notificationId: string)
     const userSnap = await getDoc(doc(db, 'users', userId));
     const userName = userSnap.exists() ? (userSnap.data().displayName || 'Anonymous') : 'Anonymous';
 
-    // Create the new course for the user
-    const newCourseData: CourseData = {
-      ...courseData,
+    // Ensure all data is properly serialized
+    const cleanCourseData = {
+      topic: courseData.topic || 'Untitled Course',
+      depth: courseData.depth || 'Normal Path',
+      courseMode: courseData.courseMode || 'Solo',
+      invitedFriends: courseData.invitedFriends || [],
+      outline: courseData.outline || undefined,
+      steps: courseData.steps || [],
+      notes: "",
+      isPublic: false,
       userId,
       userName,
-      isPublic: false,
       createdAt: new Date().toISOString(),
-      notes: "",
     };
 
-    await addCourse(newCourseData);
+    // Create the new course for the user
+    const newCourseData: CourseData = cleanCourseData as CourseData;
 
-    // Mark notification as read or delete it? 
-    // The previous implementation deleted it? No, let's mark as read and maybe delete.
-    // Actually, NotificationBell has a deleteNotification call too.
+    const courseId = await addCourse(newCourseData);
+
+    // Mark notification as read
     await updateDoc(notifRef, { read: true, status: 'accepted' });
 
     return { success: true, message: "Course added to your library!" };
