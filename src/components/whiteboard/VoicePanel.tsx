@@ -13,11 +13,6 @@ interface VoiceState {
     isSpeaking: boolean;
 }
 
-interface PeerConnection {
-    connection: RTCPeerConnection;
-    stream?: MediaStream;
-}
-
 const ICE_SERVERS = {
     iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
@@ -39,17 +34,17 @@ export function WhiteboardVoicePanel({ courseId }: { courseId: string }) {
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
     const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
 
-    // Refs
+    // Refs for stable access in callbacks
     const peersRef = useRef<Map<string, RTCPeerConnection>>(new Map());
     const localStreamRef = useRef<MediaStream | null>(null);
+    const isInCallRef = useRef(false); // Critical: Tracks call state for listeners
     const isSpeakingRef = useRef(false);
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyserRef = useRef<AnalyserNode | null>(null);
 
     const others = useOthers();
-    const self = useSelf(); // Get full self object including connectionId
+    const self = useSelf();
 
-    // Liveblocks State mutation
     const updateVoiceState = useMutation(
         ({ setMyPresence, self }, newState: Partial<VoiceState>) => {
             const currentVoiceState = self.presence.voiceState || { isInCall: false, isMuted: false, isSpeaking: false };
@@ -58,20 +53,21 @@ export function WhiteboardVoicePanel({ courseId }: { courseId: string }) {
         []
     );
 
-    // Helper to create peer connection
-    const createPeerConnection = (targetUserId: string, initiator: boolean) => {
-        if (peersRef.current.has(targetUserId)) return peersRef.current.get(targetUserId);
+    const createPeerConnection = (targetUserId: string) => {
+        if (peersRef.current.has(targetUserId)) {
+            console.log("Using existing connection for", targetUserId);
+            return peersRef.current.get(targetUserId);
+        }
 
+        console.log("Creating new PeerConnection for", targetUserId);
         const pc = new RTCPeerConnection(ICE_SERVERS);
 
-        // Add local tracks
         if (localStreamRef.current) {
             localStreamRef.current.getTracks().forEach(track => {
                 pc.addTrack(track, localStreamRef.current!);
             });
         }
 
-        // Handle ICE candidates
         pc.onicecandidate = (event) => {
             if (event.candidate) {
                 broadcast({
@@ -82,18 +78,19 @@ export function WhiteboardVoicePanel({ courseId }: { courseId: string }) {
             }
         };
 
-        // Handle remote stream
         pc.ontrack = (event) => {
+            console.log("Received remote track from", targetUserId);
+            const stream = event.streams[0];
             setRemoteStreams(prev => {
                 const newMap = new Map(prev);
-                newMap.set(targetUserId, event.streams[0]);
+                newMap.set(targetUserId, stream);
                 return newMap;
             });
         };
 
-        // Cleanup on close
         pc.onconnectionstatechange = () => {
-            if (pc.connectionState === 'disconnected' || pc.connectionState === 'closed') {
+            console.log(`Connection state with ${targetUserId}: ${pc.connectionState}`);
+            if (pc.connectionState === 'disconnected' || pc.connectionState === 'closed' || pc.connectionState === 'failed') {
                 peersRef.current.delete(targetUserId);
                 setRemoteStreams(prev => {
                     const newMap = new Map(prev);
@@ -107,96 +104,68 @@ export function WhiteboardVoicePanel({ courseId }: { courseId: string }) {
         return pc;
     };
 
-    // Handle incoming signals
-    useEventListener(({ event }) => {
-        if (!isInCall || !localStreamRef.current) return;
-
-        const signal = event as any;
-
-        // Handle "new-peer" event: Someone joined, so I should initiate connection to them
-        if (signal.type === "new-peer") {
-            const targetId = signal.userId;
-            // Only initiate if we don't have a connection yet
-            // To prevent dual-initiation, we can use simple ID comparison tie-breaker or just let the new joiner be the one who triggers the others (usually specific pattern needed).
-            // Simplest Mesh: Existing peers initiate to New peer.
-            // Or New peer initiates to All existing.
-            // Let's use: The one who receives "new-peer" (existing user) initiates.
-            const pc = createPeerConnection(targetId, true);
-            if (pc) {
-                pc.createOffer()
-                    .then(offer => pc.setLocalDescription(offer))
-                    .then(() => {
-                        broadcast({
-                            type: "signal",
-                            targetUserId: targetId,
-                            payload: { type: "offer", sdp: pc.localDescription }
-                        });
-                    });
-            }
-            return;
-        }
-
-        // Handle direct signals
-        if (signal.type === "signal" && signal.targetUserId === String(self.connectionId)) {
-            // Find who sent this (we need source user info from event if possible, liveblocks wraps it)
-            // Wait, useEventListener provides { user, connectionId, event }
-            // So we can get sender from the wrapper.
-            // But wait, the standard useEventListener callback argument structure
-        }
-    });
-
-    // Liveblocks 2.0+ useEventListener signature is ({ event, user, connectionId })
-    // I need to intercept the sender ID.
+    // Event Listener for Signaling
     useEventListener(({ event, connectionId }) => {
-        if (!isInCall || !localStreamRef.current) return;
-        const signal = event as any;
-        const senderId = String(connectionId); // Using connectionId as the peer identifier
+        if (!isInCallRef.current || !localStreamRef.current) return;
 
+        const signal = event as any;
+        const senderId = String(connectionId);
+
+        // 1. New Peer Joined -> I initiate offer
         if (signal.type === "new-peer") {
-            // Someone joined. If I am in call, I initiate connection to them.
-            // senderId is the new peer
-            const pc = createPeerConnection(senderId, true);
+            console.log("New peer joined:", senderId);
+            const pc = createPeerConnection(senderId);
             if (pc) {
                 pc.createOffer()
                     .then(offer => pc.setLocalDescription(offer))
                     .then(() => {
+                        console.log("Sending offer to", senderId);
                         broadcast({
                             type: "signal",
                             targetUserId: senderId,
                             payload: { type: "offer", sdp: pc.localDescription }
                         });
                     })
-                    .catch(console.error);
+                    .catch(e => console.error("Error creating offer:", e));
             }
+            return;
         }
-        else if (signal.type === "signal" && String(signal.targetUserId) === String(self.connectionId)) {
+
+        // 2. Received Signal (Offer/Answer/Candidate) targeting ME
+        if (signal.type === "signal" && String(signal.targetUserId) === String(self.connectionId)) {
             const payload = signal.payload;
-            const pc = createPeerConnection(senderId, false);
+            const pc = createPeerConnection(senderId);
             if (!pc) return;
 
             if (payload.type === "offer") {
+                console.log("Received offer from", senderId);
                 pc.setRemoteDescription(new RTCSessionDescription(payload.sdp))
                     .then(() => pc.createAnswer())
                     .then(answer => pc.setLocalDescription(answer))
                     .then(() => {
+                        console.log("Sending answer to", senderId);
                         broadcast({
                             type: "signal",
                             targetUserId: senderId,
                             payload: { type: "answer", sdp: pc.localDescription }
                         });
                     })
-                    .catch(console.error);
-            } else if (payload.type === "answer") {
+                    .catch(e => console.error("Error handling offer:", e));
+            }
+            else if (payload.type === "answer") {
+                console.log("Received answer from", senderId);
                 pc.setRemoteDescription(new RTCSessionDescription(payload.sdp))
-                    .catch(console.error);
-            } else if (payload.type === "candidate") {
+                    .catch(e => console.error("Error setting remote description (answer):", e));
+            }
+            else if (payload.type === "candidate") {
+                // console.log("Received ICE candidate from", senderId);
                 pc.addIceCandidate(new RTCIceCandidate(payload.candidate))
-                    .catch(console.error);
+                    .catch(e => console.error("Error adding ICE candidate:", e));
             }
         }
     });
 
-    // Voice Detection Logic (from previous step)
+    // Voice Volume Detection Logic
     useEffect(() => {
         if (!localStream || !isInCall) return;
 
@@ -233,7 +202,7 @@ export function WhiteboardVoicePanel({ courseId }: { courseId: string }) {
                 }
             }
 
-            if (isInCall) {
+            if (isInCallRef.current) { // Use Ref here too for safety
                 animationFrameId = requestAnimationFrame(detectSpeaking);
             }
         };
@@ -248,15 +217,18 @@ export function WhiteboardVoicePanel({ courseId }: { courseId: string }) {
 
     const joinCall = async () => {
         try {
+            console.log("Joining call...");
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
             setLocalStream(stream);
             localStreamRef.current = stream;
 
             setIsInCall(true);
+            isInCallRef.current = true; // Update Ref
+
             updateVoiceState({ isInCall: true, isMuted: false, isSpeaking: false });
 
-            // Announce join to others so they can initiate connections
+            // Announce presence
             broadcast({ type: "new-peer", userId: String(self.connectionId) });
 
             toast({ title: "Joined voice chat" });
@@ -267,19 +239,21 @@ export function WhiteboardVoicePanel({ courseId }: { courseId: string }) {
     };
 
     const leaveCall = () => {
-        // Stop local stream
+        console.log("Leaving call...");
+
         if (localStream) {
             localStream.getTracks().forEach((track) => track.stop());
             setLocalStream(null);
             localStreamRef.current = null;
         }
 
-        // Close all peer connections
         peersRef.current.forEach(pc => pc.close());
         peersRef.current.clear();
         setRemoteStreams(new Map());
 
         setIsInCall(false);
+        isInCallRef.current = false; // Update Ref
+
         setIsMuted(false);
         setIsSpeaking(false);
         updateVoiceState({ isInCall: false, isMuted: false, isSpeaking: false });
@@ -298,7 +272,7 @@ export function WhiteboardVoicePanel({ courseId }: { courseId: string }) {
         }
     };
 
-    // UI Rendering
+    // Count UI
     const usersInCall = others.filter((other) => {
         return (other.presence.voiceState as any)?.isInCall;
     }).length + (isInCall ? 1 : 0);
@@ -309,11 +283,17 @@ export function WhiteboardVoicePanel({ courseId }: { courseId: string }) {
 
     return (
         <div className="fixed top-20 right-6 z-40">
-            {/* Hidden Audio Elements for Remote Streams */}
+            {/* Remote Audio Elements */}
             {Array.from(remoteStreams.entries()).map(([peerId, stream]) => (
                 <audio
                     key={peerId}
-                    ref={el => { if (el) el.srcObject = stream; }}
+                    ref={el => {
+                        if (el && el.srcObject !== stream) {
+                            el.srcObject = stream;
+                            // Ensure it plays even if browser blocks implicit autoplay
+                            el.play().catch(e => console.error("Audio play failed:", e));
+                        }
+                    }}
                     autoPlay
                     playsInline
                 />
