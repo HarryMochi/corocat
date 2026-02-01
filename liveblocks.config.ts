@@ -39,8 +39,9 @@ declare global {
     };
 
     // Custom events, for useBroadcastEvent, useEventListener
-    RoomEvent: {};
-    // Example has two events, using a union
+    RoomEvent:
+    | { type: "signal"; payload: any; targetUserId: string }
+    | { type: "new-peer"; userId: string };
     // | { type: "PLAY" } 
     // | { type: "REACTION"; emoji: "🔥" };
 
