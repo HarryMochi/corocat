@@ -225,6 +225,7 @@ export default function LearnPage() {
       onQuizRestart={handleQuizRestart}
       onCourseComplete={() => { setActiveCourseId(null); fetchCourses(); }}
       onShareCourse={handleShareCourse}
+      onDeleteCourse={handleDeleteCourse}
     />
   ) : (
     <div className="h-full flex items-center justify-center p-4 md:p-8">

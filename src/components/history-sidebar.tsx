@@ -163,7 +163,7 @@ export default function HistorySidebar({
                 </Button>
 
                 {/* Actions */}
-                <div className="absolute top-1/2 right-2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute top-1/2 right-2 -translate-y-1/2 flex items-center transition-opacity">
                   {onShareCourse && (
                     <Button
                       variant="ghost"

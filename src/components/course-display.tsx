@@ -9,8 +9,19 @@ import type { AssistWithNotesOutput } from '@/ai/flows/assist-with-notes';
 import { StepWorkspace, type Message } from './step-workspace';
 import type { GenerateStepQuizOutput } from '@/ai/flows/generate-step-quiz';
 import { Button } from './ui/button';
-import { Share2, Users } from 'lucide-react';
+import { Share2, Users, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface CourseDisplayProps {
   course: Course;
@@ -24,6 +35,7 @@ interface CourseDisplayProps {
   onQuizRestart: (courseId: string, stepNumber: number) => void;
   onCourseComplete: () => void;
   onShareCourse: (course: Course) => void;
+  onDeleteCourse: (courseId: string) => void;
 }
 
 export default function CourseDisplay({
@@ -37,7 +49,8 @@ export default function CourseDisplay({
   onGenerateQuiz,
   onQuizRestart,
   onCourseComplete,
-  onShareCourse
+  onShareCourse,
+  onDeleteCourse
 }: CourseDisplayProps) {
   const [activeStep, setActiveStep] = useState<Step | null>(null);
 
@@ -71,14 +84,46 @@ export default function CourseDisplay({
               {course.topic}
             </h1>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onShareCourse(course)}
-            >
-              <Share2 className="mr-2 h-4 w-4" />
-              Share
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onShareCourse(course)}
+              >
+                <Share2 className="mr-2 h-4 w-4" />
+                Share
+              </Button>
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete the course "{course.topic}".
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => onDeleteCourse(course.id)}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </div>
 
           {/* Progress ONLY for SOLO */}
