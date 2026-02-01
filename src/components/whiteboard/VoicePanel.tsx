@@ -23,16 +23,17 @@ export function WhiteboardVoicePanel({ courseId }: { courseId: string }) {
     const analyserRef = useRef<AnalyserNode | null>(null);
     const [isSpeaking, setIsSpeaking] = useState(false);
 
+    // Use ref to track speaking state inside the loop without re-triggering effect
+    const isSpeakingRef = useRef(false);
+
     const others = useOthers();
 
-    const voiceState = useSelf((me) => me.presence.voiceState) as VoiceState | undefined;
-
     const updateVoiceState = useMutation(
-        ({ setMyPresence }, newState: Partial<VoiceState>) => {
-            const currentState = voiceState || { isInCall: false, isMuted: false, isSpeaking: false };
-            setMyPresence({ voiceState: { ...currentState, ...newState } });
+        ({ setMyPresence, self }, newState: Partial<VoiceState>) => {
+            const currentVoiceState = self.presence.voiceState || { isInCall: false, isMuted: false, isSpeaking: false };
+            setMyPresence({ voiceState: { ...currentVoiceState, ...newState } });
         },
-        [voiceState]
+        []
     );
 
     // Start voice detection
@@ -51,6 +52,8 @@ export function WhiteboardVoicePanel({ courseId }: { courseId: string }) {
         analyserRef.current = analyser;
 
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        let animationFrameId: number;
+        let lastSpeakTime = 0;
 
         const detectSpeaking = () => {
             if (!analyserRef.current) return;
@@ -59,17 +62,27 @@ export function WhiteboardVoicePanel({ courseId }: { courseId: string }) {
             const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
 
             const speaking = average > 20; // Threshold for speaking detection
-            setIsSpeaking(speaking);
-            updateVoiceState({ isSpeaking: speaking });
+            const now = Date.now();
+
+            // Only update state if it changed
+            if (speaking !== isSpeakingRef.current) {
+                if (speaking || (now - lastSpeakTime > 500)) { // Debounce stop speaking
+                    isSpeakingRef.current = speaking;
+                    setIsSpeaking(speaking);
+                    updateVoiceState({ isSpeaking: speaking });
+                    if (speaking) lastSpeakTime = now;
+                }
+            }
 
             if (isInCall) {
-                requestAnimationFrame(detectSpeaking);
+                animationFrameId = requestAnimationFrame(detectSpeaking);
             }
         };
 
         detectSpeaking();
 
         return () => {
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
             audioContext.close();
         };
     }, [localStream, isInCall, updateVoiceState]);
