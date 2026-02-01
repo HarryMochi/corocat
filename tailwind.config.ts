@@ -1,5 +1,5 @@
 
-import type {Config} from 'tailwindcss';
+import type { Config } from 'tailwindcss';
 
 export default {
   darkMode: ['class'],
@@ -101,21 +101,29 @@ export default {
           },
         },
         'fade-in-up': {
-            '0%': {
-                opacity: '0',
-                transform: 'translateY(20px)'
-            },
-            '100%': {
-                opacity: '1',
-                transform: 'translateY(0)'
-            }
+          '0%': {
+            opacity: '0',
+            transform: 'translateY(20px)'
+          },
+          '100%': {
+            opacity: '1',
+            transform: 'translateY(0)'
+          }
         },
         blink: {
-            '50%': { opacity: '0' }
+          '50%': { opacity: '0' }
         },
         'subtle-pulse': {
           '0%, 100%': { transform: 'scale(1)', boxShadow: '0 0 0 0 hsla(var(--accent), 0.7)' },
           '50%': { transform: 'scale(1.02)', boxShadow: '0 0 0 10px hsla(var(--accent), 0)' },
+        },
+        shimmer: {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(100%)' },
+        },
+        'gradient-x': {
+          '0%, 100%': { 'background-size': '200% 200%', 'background-position': 'left center' },
+          '50%': { 'background-size': '200% 200%', 'background-position': 'right center' },
         }
       },
       animation: {
@@ -125,6 +133,8 @@ export default {
         'fade-in-up': 'fade-in-up 0.5s ease-out 0.2s forwards',
         'blink': 'blink 1s step-start infinite',
         'subtle-pulse': 'subtle-pulse 2.5s infinite cubic-bezier(0.4, 0, 0.6, 1)',
+        'shimmer': 'shimmer 2s infinite',
+        'gradient-x': 'gradient-x 3s ease infinite',
       },
     },
   },
