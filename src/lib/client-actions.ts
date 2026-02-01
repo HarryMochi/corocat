@@ -23,13 +23,12 @@ export async function acceptSharedCourseClient(userId: string, notificationId: s
         const userSnap = await getDoc(doc(db, 'users', userId));
         const userName = userSnap.exists() ? (userSnap.data().displayName || 'Anonymous') : 'Anonymous';
 
-        // Ensure all data is properly serialized
-        const cleanCourseData: CourseData = {
+        // Ensure all data is properly serialized and remove undefined values
+        const cleanCourseData: any = {
             topic: courseData.topic || 'Untitled Course',
             depth: courseData.depth || 'Normal Path',
             courseMode: courseData.courseMode || 'Solo',
             invitedFriends: courseData.invitedFriends || [],
-            outline: courseData.outline || undefined,
             steps: courseData.steps || [],
             notes: "",
             isPublic: false,
@@ -38,8 +37,13 @@ export async function acceptSharedCourseClient(userId: string, notificationId: s
             createdAt: new Date().toISOString(),
         };
 
+        // Only add outline if it exists and is not undefined
+        if (courseData.outline && courseData.outline !== undefined) {
+            cleanCourseData.outline = courseData.outline;
+        }
+
         // Create the new course for the user
-        await addCourse(cleanCourseData);
+        await addCourse(cleanCourseData as CourseData);
 
         // Mark notification as read
         await updateDoc(notifRef, { read: true, status: 'accepted' });
