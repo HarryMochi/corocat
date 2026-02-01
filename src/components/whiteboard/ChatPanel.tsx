@@ -3,7 +3,6 @@
 import { MessageSquare, Mic, MicOff, X, Lock } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { isPremiumUser, showPremiumUpgradePrompt } from "@/lib/premium";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { ScrollArea } from "../ui/scroll-area";
@@ -26,8 +25,6 @@ export function WhiteboardChatPanel({ courseId }: { courseId: string }) {
     const [isOpen, setIsOpen] = useState(false);
     const [message, setMessage] = useState("");
     const scrollRef = useRef<HTMLDivElement>(null);
-
-    const isPremium = user ? isPremiumUser(user) : false;
 
     // Liveblocks storage for messages
     const messages = useSelf((me) => me.presence.chatMessages) || [];
@@ -58,15 +55,6 @@ export function WhiteboardChatPanel({ courseId }: { courseId: string }) {
 
     const handleSendMessage = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!isPremium) {
-            const prompt = showPremiumUpgradePrompt();
-            toast({
-                title: prompt.title,
-                description: prompt.message,
-                variant: "destructive",
-            });
-            return;
-        }
         sendMessage();
     };
 
@@ -77,15 +65,6 @@ export function WhiteboardChatPanel({ courseId }: { courseId: string }) {
     }, [messages]);
 
     const toggleChat = () => {
-        if (!isPremium) {
-            const prompt = showPremiumUpgradePrompt();
-            toast({
-                title: prompt.title,
-                description: prompt.message,
-                variant: "destructive",
-            });
-            return;
-        }
         setIsOpen(!isOpen);
     };
 
@@ -106,9 +85,6 @@ export function WhiteboardChatPanel({ courseId }: { courseId: string }) {
                     variant={isOpen ? "secondary" : "default"}
                 >
                     <MessageSquare className="h-6 w-6" />
-                    {!isPremium && (
-                        <Lock className="absolute -top-1 -right-1 h-4 w-4 text-yellow-500" />
-                    )}
                 </Button>
             </div>
 
@@ -173,8 +149,8 @@ export function WhiteboardChatPanel({ courseId }: { courseId: string }) {
                                             </div>
                                             <div
                                                 className={`inline-block px-3 py-2 rounded-lg ${msg.userId === user?.uid
-                                                        ? "bg-primary text-primary-foreground"
-                                                        : "bg-muted"
+                                                    ? "bg-primary text-primary-foreground"
+                                                    : "bg-muted"
                                                     }`}
                                             >
                                                 <p className="text-sm">{msg.message}</p>
@@ -193,9 +169,8 @@ export function WhiteboardChatPanel({ courseId }: { courseId: string }) {
                                 placeholder="Type a message..."
                                 value={message}
                                 onChange={(e) => setMessage(e.target.value)}
-                                disabled={!isPremium}
                             />
-                            <Button type="submit" disabled={!isPremium || !message.trim()}>
+                            <Button type="submit" disabled={!message.trim()}>
                                 Send
                             </Button>
                         </div>

@@ -3,7 +3,6 @@
 import { Phone, PhoneOff, Mic, MicOff, Volume2, VolumeX, Lock } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { isPremiumUser, showPremiumUpgradePrompt } from "@/lib/premium";
 import { Button } from "../ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useOthers, useSelf, useMutation } from "@liveblocks/react/suspense";
@@ -24,7 +23,6 @@ export function WhiteboardVoicePanel({ courseId }: { courseId: string }) {
     const analyserRef = useRef<AnalyserNode | null>(null);
     const [isSpeaking, setIsSpeaking] = useState(false);
 
-    const isPremium = user ? isPremiumUser(user) : false;
     const others = useOthers();
 
     const voiceState = useSelf((me) => me.presence.voiceState) as VoiceState | undefined;
@@ -77,16 +75,6 @@ export function WhiteboardVoicePanel({ courseId }: { courseId: string }) {
     }, [localStream, isInCall, updateVoiceState]);
 
     const joinCall = async () => {
-        if (!isPremium) {
-            const prompt = showPremiumUpgradePrompt();
-            toast({
-                title: prompt.title,
-                description: prompt.message,
-                variant: "destructive",
-            });
-            return;
-        }
-
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             setLocalStream(stream);
@@ -184,7 +172,6 @@ export function WhiteboardVoicePanel({ courseId }: { courseId: string }) {
                             <Button onClick={joinCall} className="w-full" size="sm">
                                 <Phone className="h-4 w-4 mr-2" />
                                 Join Voice
-                                {!isPremium && <Lock className="h-3 w-3 ml-2" />}
                             </Button>
                         ) : (
                             <>
@@ -223,9 +210,6 @@ export function WhiteboardVoicePanel({ courseId }: { courseId: string }) {
                     variant="secondary"
                 >
                     <Phone className="h-6 w-6" />
-                    {!isPremium && (
-                        <Lock className="absolute -top-1 -right-1 h-4 w-4 text-yellow-500" />
-                    )}
                 </Button>
             )}
         </div>
