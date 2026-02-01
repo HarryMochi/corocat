@@ -26,6 +26,7 @@ const DiscordIcon = ({ className }: { className?: string }) => (
 export default function LandingPage() {
   const { user, loading } = useAuth();
   const [scrollY, setScrollY] = useState(0);
+  const [isYearly, setIsYearly] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
@@ -278,16 +279,34 @@ export default function LandingPage() {
 
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
               <div className="text-center mb-16">
-                <h2 className="text-4xl md:text-5xl font-bold mb-4 text-foreground tracking-tight">Simple, Transparent Pricing</h2>
+                <h2 className="text-4xl md:text-5xl font-bold mb-4 text-foreground tracking-tight">Corocat Pricing</h2>
                 <div className="h-1.5 w-24 bg-primary/10 mx-auto rounded-full mb-6 relative overflow-hidden">
-                    <div className="absolute inset-y-0 left-0 bg-primary w-1/2 rounded-full animate-[shimmer_2s_infinite]" style={{
-                      backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
-                      backgroundSize: '200% 100%'
-                    }} />
+                  <div className="absolute inset-y-0 left-0 bg-primary w-1/2 rounded-full animate-[shimmer_2s_infinite]" style={{
+                    backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
+                    backgroundSize: '200% 100%'
+                  }} />
                 </div>
-                <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
+                <p className="text-muted-foreground max-w-2xl mx-auto text-lg mb-8">
                   Start your learning journey for free or upgrade to unlock more power.
                 </p>
+
+                {/* Pricing Toggle */}
+                <div className="flex items-center justify-center gap-4 mb-12">
+                  <span className={cn("text-sm font-medium transition-colors", !isYearly ? "text-foreground" : "text-muted-foreground")}>Monthly</span>
+                  <button
+                    onClick={() => setIsYearly(!isYearly)}
+                    className="relative w-14 h-7 bg-muted rounded-full p-1 transition-colors hover:bg-muted/80"
+                  >
+                    <div className={cn(
+                      "w-5 h-5 bg-primary rounded-full transition-transform duration-300 shadow-sm",
+                      isYearly ? "translate-x-7" : "translate-x-0"
+                    )} />
+                  </button>
+                  <span className={cn("text-sm font-medium transition-colors", isYearly ? "text-foreground" : "text-muted-foreground")}>Yearly</span>
+                  <span className="ml-2 px-2 py-0.5 bg-green-500/10 text-green-500 text-[10px] font-bold uppercase tracking-wider rounded-full border border-green-500/20">
+                    Save 15%
+                  </span>
+                </div>
               </div>
 
               <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto items-stretch">
@@ -332,7 +351,7 @@ export default function LandingPage() {
                 <div className="group relative flex flex-col bg-white rounded-[2.5rem] overflow-hidden border-2 border-primary/30 shadow-[0_30px_60px_-15px_rgba(var(--primary),0.1)] transition-all duration-300 hover:shadow-[0_40px_80px_-15px_rgba(var(--primary),0.2)] hover:-translate-y-2">
                   {/* Visual Accent - Top Gradient Strip */}
                   <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-primary via-accent to-primary animate-gradient-x" />
-                  
+
                   {/* Most Popular Badge */}
                   <div className="absolute top-6 right-6">
                     <div className="inline-flex items-center gap-1.5 py-1 px-4 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest rounded-full shadow-lg shadow-primary/20">
@@ -344,7 +363,7 @@ export default function LandingPage() {
                   <div className="p-10 flex flex-col h-full relative">
                     {/* Nitro-style Background Glow */}
                     <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/5 rounded-full blur-[80px] group-hover:bg-primary/10 transition-colors" />
-                    
+
                     <div className="mb-8 relative">
                       <div className="flex items-center gap-2 mb-4">
                         <span className="text-xs font-bold uppercase tracking-widest text-primary bg-primary/10 px-3 py-1 rounded-full">Professional</span>
@@ -353,7 +372,7 @@ export default function LandingPage() {
                         <h3 className="text-3xl font-extrabold text-foreground tracking-tight">Premium</h3>
                       </div>
                       <div className="flex items-baseline gap-1">
-                        <span className="text-5xl font-black text-foreground">$12</span>
+                        <span className="text-5xl font-black text-foreground">${isYearly ? '10' : '12'}</span>
                         <span className="text-muted-foreground text-sm font-medium">/ month</span>
                       </div>
                       <p className="mt-4 text-muted-foreground text-sm leading-relaxed font-medium">
@@ -365,7 +384,9 @@ export default function LandingPage() {
                       {[
                         { text: "10 course creations per hour", highlight: true },
                         { text: "20 total whiteboards", highlight: true },
-                        { text: "Cooler profile UI (Nitro-style)", highlight: true },
+                        { text: "Enhanced Profile page", highlight: true },
+                        { text: "Faster course generation", highlight: true },
+                        { text: "Better and more aimed output", highlight: true },
                         { text: "Gradient Username", highlight: true },
                         { text: "Visually enhanced profile styling", highlight: true },
                       ].map((feature, i) => (
