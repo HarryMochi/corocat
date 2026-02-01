@@ -28,22 +28,39 @@ function CourseGenerationManager() {
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('Initializing...');
   const [error, setError] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);
 
-  const topic = searchParams.get('topic') || '';
-  const masteryLevel = searchParams.get('masteryLevel') || 'Normal Path';
-  const knowledgeLevel = searchParams.get('knowledgeLevel') || 'Beginner';
-  const additionalComments = searchParams.get('additionalComments') || '';
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const [topic, setTopic] = useState('');
+  const [masteryLevel, setMasteryLevel] = useState('Normal Path');
+  const [knowledgeLevel, setKnowledgeLevel] = useState('Beginner');
+  const [additionalComments, setAdditionalComments] = useState('');
+  const [courseMode, setCourseMode] = useState<'Solo' | 'Collaborative'>('Solo');
+  const [invitedFriends, setInvitedFriends] = useState<User[]>([]);
+
+  useEffect(() => {
+    if (!isClient) return;
+    try {
+      setTopic(searchParams.get('topic') || '');
+      setMasteryLevel(searchParams.get('masteryLevel') || 'Normal Path');
+      setKnowledgeLevel(searchParams.get('knowledgeLevel') || 'Beginner');
+      setAdditionalComments(searchParams.get('additionalComments') || '');
+      setCourseMode((searchParams.get('courseMode') as 'Solo' | 'Collaborative') || 'Solo');
+      setInvitedFriends(JSON.parse(searchParams.get('invitedFriends') || '[]'));
+    } catch (e) {
+      console.error("Failed to parse search params:", e);
+      setError("Invalid course parameters.");
+    }
+  }, [isClient, searchParams]);
+
   const hasStartedRef = useRef(false);
 
 
-  const courseMode =
-    (searchParams.get('courseMode') as 'Solo' | 'Collaborative') || 'Solo';
-
-  const invitedFriends: User[] = JSON.parse(
-    searchParams.get('invitedFriends') || '[]'
-  );
-
   const generateCourse = useCallback(async () => {
+    if (!isClient) return;
     try {
       setError(null);
 
@@ -103,7 +120,9 @@ function CourseGenerationManager() {
 
         setProgress(100);
         setStatus('Collaborative course created!');
-        sessionStorage.setItem('selectedCourseId', courseId);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('selectedCourseId', courseId);
+        }
         router.push('/learn');
         return;
       }
@@ -184,7 +203,9 @@ function CourseGenerationManager() {
 
       setProgress(100);
       setStatus('Course created successfully!');
-      sessionStorage.setItem('selectedCourseId', courseId);
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('selectedCourseId', courseId);
+      }
       router.push('/learn');
 
     } catch (e: any) {
@@ -194,6 +215,7 @@ function CourseGenerationManager() {
       setStatus('Failed to generate course');
     }
   }, [
+    isClient,
     topic,
     masteryLevel,
     knowledgeLevel,
@@ -206,14 +228,22 @@ function CourseGenerationManager() {
   ]);
 
   useEffect(() => {
-    if (hasStartedRef.current) return;
+    if (!isClient || hasStartedRef.current) return;
 
-    if (!authLoading && user) {
+    if (!authLoading && user && topic) {
       hasStartedRef.current = true;
       generateCourse();
     }
-  }, [authLoading, user, generateCourse]);
+  }, [isClient, authLoading, user, topic, generateCourse]);
 
+
+  if (!isClient) {
+    return (
+      <div className="w-full h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-screen flex items-center justify-center bg-background">

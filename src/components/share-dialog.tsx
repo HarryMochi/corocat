@@ -36,7 +36,7 @@ export function ShareDialog({ user, friends, course, isOpen, onOpenChange }: Sha
         if (!course || !user || selectedFriends.length === 0) return;
         setIsSharing(true);
         try {
-            await shareCourseWithFriends(course, selectedFriends, { uid: user.uid, displayName: user.displayName });
+            await shareCourseWithFriends(course, selectedFriends, { uid: user.uid, displayName: user.displayName, photoURL: user.photoURL });
             toast({ title: "Success", description: "Course shared successfully!" });
             onOpenChange(false);
             setSelectedFriends([]);

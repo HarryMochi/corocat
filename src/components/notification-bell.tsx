@@ -30,10 +30,10 @@ export function NotificationBell({ onCourseAccepted }: NotificationBellProps) {
     );
 
     const handleAcceptCourse = async (notification: Notification) => {
-        if (!user || !notification.relatedEntityId) return;
+        if (!user) return;
         setIsActing(notification.id);
         try {
-            const result = await acceptSharedCourse(notification.id);
+            const result = await acceptSharedCourse(user.uid, notification.id);
             if (!result.success) throw new Error(result.message);
 
             toast({

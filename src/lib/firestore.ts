@@ -585,7 +585,7 @@ export async function markAllNotificationsAsRead(userId: string): Promise<void> 
 }
 
 // Course Sharing
-export async function shareCourseWithFriends(course: Course, friendIds: string[], fromUser: { uid: string, displayName: string | null }) {
+export async function shareCourseWithFriends(course: Course, friendIds: string[], fromUser: { uid: string, displayName: string | null, photoURL?: string | null }) {
   const message = `${fromUser.displayName || 'A friend'} shared a course with you: "${course.topic}"`;
   const { id, userId, userName, ...courseData } = course;
 
@@ -598,18 +598,68 @@ export async function shareCourseWithFriends(course: Course, friendIds: string[]
     return newStep;
   });
 
-  const data = {
-    type: 'course-share',
-    courseData: { ...courseData, steps: resetSteps }
-  };
-
   const batch = writeBatch(db);
   friendIds.forEach(friendId => {
     const notifRef = doc(collection(db, 'users', friendId, 'notifications'));
-    batch.set(notifRef, { message, createdAt: new Date().toISOString(), read: false, data });
+    batch.set(notifRef, {
+      message,
+      createdAt: new Date().toISOString(),
+      read: false,
+      type: 'course_shared',
+      fromUserId: fromUser.uid,
+      fromUserName: fromUser.displayName || 'Anonymous',
+      fromUserAvatar: fromUser.photoURL || null,
+      relatedEntityId: course.id,
+      relatedEntityName: course.topic,
+      data: {
+        courseData: { ...courseData, steps: resetSteps }
+      }
+    });
   });
 
   await batch.commit();
+}
+
+export async function acceptSharedCourse(userId: string, notificationId: string): Promise<{ success: boolean; message: string }> {
+  try {
+    const notifRef = doc(db, 'users', userId, 'notifications', notificationId);
+    const notifSnap = await getDoc(notifRef);
+
+    if (!notifSnap.exists()) {
+      throw new Error("Notification not found.");
+    }
+
+    const notifData = notifSnap.data();
+    if (notifData.type !== 'course_shared' || !notifData.data?.courseData) {
+      throw new Error("Invalid notification type for course acceptance.");
+    }
+
+    const courseData = notifData.data.courseData;
+    const userSnap = await getDoc(doc(db, 'users', userId));
+    const userName = userSnap.exists() ? (userSnap.data().displayName || 'Anonymous') : 'Anonymous';
+
+    // Create the new course for the user
+    const newCourseData: CourseData = {
+      ...courseData,
+      userId,
+      userName,
+      isPublic: false,
+      createdAt: new Date().toISOString(),
+      notes: "",
+    };
+
+    await addCourse(newCourseData);
+
+    // Mark notification as read or delete it? 
+    // The previous implementation deleted it? No, let's mark as read and maybe delete.
+    // Actually, NotificationBell has a deleteNotification call too.
+    await updateDoc(notifRef, { read: true, status: 'accepted' });
+
+    return { success: true, message: "Course added to your library!" };
+  } catch (error: any) {
+    console.error("Error accepting shared course:", error);
+    return { success: false, message: error.message || "Failed to accept course." };
+  }
 }
 
 export async function addSharedCourse(courseData: Omit<Course, 'id' | 'userId' | 'userName'>, userId: string, userName: string): Promise<string> {
