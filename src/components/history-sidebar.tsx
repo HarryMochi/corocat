@@ -10,10 +10,20 @@ import {
   MoreHorizontal,
   Users,
   Share2,
+  Zap,
+  Lock,
 } from "lucide-react";
 import Logo from "./logo";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "./ui/scroll-area";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { checkCourseLimit, checkWhiteboardLimit, getPlanLimits, getUserPlan } from "@/lib/limits";
+import Link from "next/link";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,7 +43,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import Link from "next/link";
+
 import { Separator } from "./ui/separator";
 import { SocialsModal } from './socials-modal';
 import { NotificationBell } from './notification-bell';
@@ -103,16 +113,67 @@ export default function HistorySidebar({
 
       {/* Actions */}
       <div className="p-4 space-y-2">
-        <SocialsModal>
-          <Button variant="outline" className="w-full">
-            <Users className="mr-2 h-4 w-4" /> Socials
-          </Button>
-        </SocialsModal>
+        <div className="space-y-4">
+          <SocialsModal>
+            <Button variant="outline" className="w-full">
+              <Users className="mr-2 h-4 w-4" /> Socials
+            </Button>
+          </SocialsModal>
 
-        <Button onClick={onCreateNew} className="w-full">
-          <Plus className="mr-2 h-4 w-4" />
-          New Course
-        </Button>
+          {user && (
+            <div className="bg-card rounded-md p-3 border space-y-3 text-xs">
+              <div className="flex items-center justify-between font-semibold">
+                <span className="flex items-center gap-1.5"><Zap className="w-3 h-3 text-yellow-500" /> Plan Usage</span>
+                {getUserPlan(user) === 'free' ? (
+                  <Link href="/#pricing" className="text-primary hover:underline capitalize">{getUserPlan(user)} <span className="text-[10px] ml-1">Upgrade</span></Link>
+                ) : (
+                  <span className="capitalize text-muted-foreground">{getUserPlan(user)}</span>
+                )}
+              </div>
+
+              {/* Course Limit */}
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span>Courses (1h)</span>
+                  <span className={checkCourseLimit(user).allowed ? "text-muted-foreground" : "text-destructive font-bold"}>
+                    {getPlanLimits(getUserPlan(user)).coursesPerHour - checkCourseLimit(user).remaining} / {getPlanLimits(getUserPlan(user)).coursesPerHour}
+                  </span>
+                </div>
+                {/* Progress Bar could go here */}
+              </div>
+
+              {/* Whiteboard Limit */}
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span>Whiteboards</span>
+                  <span className={checkWhiteboardLimit(user, user.limits?.whiteboardsCreatedTotal || 0).allowed ? "text-muted-foreground" : "text-destructive font-bold"}>
+                    {user.limits?.whiteboardsCreatedTotal || 0} / {getPlanLimits(getUserPlan(user)).whiteboardsTotal}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span> {/* Span wrapper needed for disabled button tooltip trigger */}
+                  <Button
+                    onClick={onCreateNew}
+                    className="w-full"
+                    disabled={user ? (!checkCourseLimit(user).allowed && !checkWhiteboardLimit(user, user.limits?.whiteboardsCreatedTotal || 0).allowed) : false}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    New Course
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Check your plan limits!</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
 
       {/* Course List */}

@@ -8,11 +8,41 @@ import { generateStepContentPrompt } from '@/ai/flows/generate-step-content';
 import type { CourseData, Step, User } from '@/lib/types';
 import { ai } from '@/ai/genkit';
 import { googleAI } from '@genkit-ai/googleai';
+import { checkWhiteboardLimit } from '@/lib/limits';
+import { FieldValue } from 'firebase-admin/firestore';
 
 const model = googleAI.model('gemini-1.5-flash');
 
+import { adminDb } from '@/lib/admin';
+import { checkCourseLimit } from '@/lib/limits';
+
 // Action to validate the course topic
-export async function validateTopicAction({ topic }: { topic: string }) {
+export async function validateTopicAction({ topic, userId }: { topic: string; userId?: string }) {
+  // 1. Check Limits (Server-Side Enforcement)
+  if (userId) {
+    try {
+      const userRef = adminDb.collection('users').doc(userId);
+      const userDoc = await userRef.get();
+
+      if (userDoc.exists) {
+        const userData = userDoc.data();
+        // Construct a User-like object for the limit checker
+        const userObj = { ...userData, uid: userId } as any;
+        const check = checkCourseLimit(userObj);
+
+        if (!check.allowed) {
+          throw new Error(`Plan limit reached! You can create ${check.limit} courses per hour. Upgrade to Premium.`);
+        }
+      }
+    } catch (error: any) {
+      if (error.message.startsWith('Plan limit')) {
+        throw error; // Re-throw limit errors
+      }
+      console.warn("Server-side limit check skipped due to configuration or network:", error);
+      // Fail-open for missing admin config, but log it.
+    }
+  }
+
   const { output } = await validateTopicPrompt({ topic }, { model });
 
   if (!output) {
@@ -107,5 +137,61 @@ export async function prepareCourseForSaving(data: {
     userName,
     isPublic: courseMode === 'Collaborative',
   };
+}
+
+// Action to create a collaborative course (Whiteboard) with backend limit enforcement
+export async function createCollaborativeCourse(data: {
+  title: string;
+  userId: string;
+  userName: string;
+  invitedFriends: User[];
+  masteryLevel: string;
+}): Promise<string> {
+  const { title, userId, userName, invitedFriends, masteryLevel } = data;
+
+  // 1. Check Whiteboard Limit
+  const userRef = adminDb.collection('users').doc(userId);
+  const userDoc = await userRef.get();
+
+  if (!userDoc.exists) {
+    throw new Error('User not found.');
+  }
+
+  const userData = userDoc.data();
+  // Construct User-like object
+  const userObj = { ...userData, uid: userId } as any;
+  // We need to ensure limits exist on the object for valid check, or fallback in logic
+  const currentCount = userObj.limits?.whiteboardsCreatedTotal || 0;
+
+  const check = checkWhiteboardLimit(userObj, currentCount);
+
+  if (!check.allowed) {
+    throw new Error(`Whiteboard limit reached! You have used ${currentCount} / ${check.limit} whiteboards. Upgrade to Premium for more.`);
+  }
+
+  // 2. Prepare Code
+  const newCourseData = {
+    topic: title,
+    depth: masteryLevel,
+    courseMode: 'Collaborative',
+    invitedFriends: invitedFriends,
+    steps: [],
+    notes: '',
+    createdAt: new Date().toISOString(),
+    userId,
+    userName,
+    isPublic: true, // Collaborative usually public or shared
+  };
+
+  // 3. Create Course
+  const courseRef = await adminDb.collection('courses').add(newCourseData);
+
+  // 4. Update Limit Counters
+  await userRef.update({
+    'limits.whiteboardsCreatedTotal': FieldValue.increment(1),
+    'limits.lastWhiteboardCreatedAt': new Date().toISOString()
+  });
+
+  return courseRef.id;
 }
 

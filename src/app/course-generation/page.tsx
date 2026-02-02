@@ -13,7 +13,7 @@ import {
 } from './actions';
 import { useAuth } from '@/hooks/use-auth';
 import Logo from '@/components/logo';
-import { addCourse, getCoursesForUser } from '@/lib/firestore';
+import { addCourse, getCoursesForUser, recordCourseCreation } from '@/lib/firestore';
 import { CourseData, User } from '@/lib/types';
 import { useRef } from 'react';
 /* 🔹 2s delay helper */
@@ -102,21 +102,14 @@ function CourseGenerationManager() {
 
         const title = topic; // ✅ topic = title
 
-        const newCourseData: CourseData = await prepareCourseForSaving({
+        // Call Server Action to create course & enforce limits
+        const courseId = await createCollaborativeCourse({
           title,
-          course: [],
-          masteryLevel,
           userId: user.uid,
-          userName:
-            user.displayName || user.email?.split('@')[0] || 'Anonymous',
-          courseMode,
+          userName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
           invitedFriends,
+          masteryLevel,
         });
-
-        setProgress(80);
-        await delay();
-
-        const courseId = await addCourse(newCourseData);
 
         setProgress(100);
         setStatus('Collaborative course created!');
@@ -134,7 +127,7 @@ function CourseGenerationManager() {
       /* ---------- VALIDATE ---------- */
       setProgress(10);
       setStatus('Validating topic...');
-      await validateTopicAction({ topic });
+      await validateTopicAction({ topic, userId: user.uid });
       await delay();
 
       /* ---------- TITLE ---------- */
@@ -200,6 +193,7 @@ function CourseGenerationManager() {
       });
 
       const courseId = await addCourse(newCourseData);
+      await recordCourseCreation(user.uid);
 
       setProgress(100);
       setStatus('Course created successfully!');

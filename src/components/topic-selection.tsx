@@ -31,6 +31,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getFriends } from "@/app/getFriendClient";
 import { useAuth } from "@/hooks/use-auth";
+import { checkCourseLimit, checkWhiteboardLimit } from "@/lib/limits";
 
 const formSchema = z.object({
   topic: z.string().min(2).max(50),
@@ -116,9 +117,10 @@ export default function TopicSelection({ soloCoursesCount = 0, collaborativeCour
 
       /* ---------- COURSE MODE ---------- */
       case 1:
-        const isLimitReached =
-          (courseMode === "Solo" && soloCoursesCount >= 3) ||
-          (courseMode === "Collaborative" && collaborativeCoursesCount >= 3);
+        const isLimitReached = user ? (
+          (courseMode === "Solo" && !checkCourseLimit(user).allowed) ||
+          (courseMode === "Collaborative" && !checkWhiteboardLimit(user, user.limits?.whiteboardsCreatedTotal || 0).allowed)
+        ) : false;
 
         return (
           <div className="space-y-6 text-center">

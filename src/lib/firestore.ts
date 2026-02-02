@@ -1,6 +1,6 @@
 
 import { db } from './firebase';
-import { collection, addDoc, getDocs, query, where, doc, updateDoc, deleteDoc, orderBy, getDoc, collectionGroup, runTransaction, arrayUnion, arrayRemove, onSnapshot, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, doc, updateDoc, deleteDoc, orderBy, getDoc, collectionGroup, runTransaction, arrayUnion, arrayRemove, onSnapshot, writeBatch, serverTimestamp, increment } from 'firebase/firestore';
 import type { Course, CourseData, MarketplaceCourse, Step, User } from './types';
 import { FirestorePermissionError } from './server-errors';
 import { FirebaseError } from 'firebase/app';
@@ -158,6 +158,10 @@ export async function getUserProfileData(userId: string) {
       socials: userData.socials || {},
       favoriteCourses: userData.favoriteCourses || [],
       friends: userData.friends || [],
+      plan: userData.plan || 'free',
+      stripeCustomerId: userData.stripeCustomerId,
+      subscriptionStatus: userData.subscriptionStatus,
+      limits: userData.limits || { coursesCreatedTimestamps: [], whiteboardsCreatedTotal: 0 },
     };
   } catch (error) {
     if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
@@ -203,6 +207,19 @@ export async function updateCourse(courseId: string, updates: Partial<CourseData
 export async function deleteCourse(courseId: string): Promise<void> {
   const refPath = `courses/${courseId}`;
   try {
+    const courseSnap = await getDoc(doc(db, 'courses', courseId));
+    if (!courseSnap.exists()) return;
+
+    const courseData = courseSnap.data();
+
+    // Decrement whiteboard limit if collaborative
+    if (courseData.courseMode === 'Collaborative') {
+      const userRef = doc(db, 'users', courseData.userId);
+      await updateDoc(userRef, {
+        'limits.whiteboardsCreatedTotal': increment(-1)
+      });
+    }
+
     await deleteDoc(doc(db, 'courses', courseId));
   } catch (error) {
     if (error instanceof FirebaseError && (error.code === 'permission-denied' || error.code === 'unauthenticated')) {
@@ -681,4 +698,19 @@ export async function addSharedCourse(courseData: Omit<Course, 'id' | 'userId' |
   };
 
   return addCourse(newCourseData);
+}
+
+export async function recordCourseCreation(userId: string): Promise<void> {
+  const userRef = doc(db, 'users', userId);
+  await updateDoc(userRef, {
+    'limits.coursesCreatedTimestamps': arrayUnion(new Date().toISOString())
+  });
+}
+
+export async function recordWhiteboardCreation(userId: string): Promise<void> {
+  const userRef = doc(db, 'users', userId);
+  await updateDoc(userRef, {
+    'limits.whiteboardsCreatedTotal': increment(1),
+    'limits.lastWhiteboardCreatedAt': new Date().toISOString()
+  });
 }

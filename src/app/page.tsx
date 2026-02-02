@@ -2,6 +2,8 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/logo';
@@ -24,7 +26,37 @@ const DiscordIcon = ({ className }: { className?: string }) => (
 );
 
 export default function LandingPage() {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+  const [loadingCheckout, setLoadingCheckout] = useState(false);
+
+  const onUpgrade = async () => {
+    if (!user) {
+      router.push('/signup');
+      return;
+    }
+
+    setLoadingCheckout(true);
+    try {
+      const response = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.uid, plan: 'premium' })
+      });
+
+      if (!response.ok) throw new Error('Failed to start checkout');
+
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Something went wrong. Please try again.');
+    } finally {
+      setLoadingCheckout(false);
+    }
+  };
   const [scrollY, setScrollY] = useState(0);
   const [isYearly, setIsYearly] = useState(false);
 
@@ -401,8 +433,12 @@ export default function LandingPage() {
                       ))}
                     </div>
 
-                    <Button asChild className="w-full py-7 rounded-2xl font-bold text-base transition-all duration-300 shadow-xl shadow-primary/20 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98]">
-                      <Link href="/signup">Upgrade to Premium</Link>
+                    <Button
+                      onClick={onUpgrade}
+                      disabled={loadingCheckout}
+                      className="w-full py-7 rounded-2xl font-bold text-base transition-all duration-300 shadow-xl shadow-primary/20 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98]"
+                    >
+                      {loadingCheckout ? 'Loading...' : 'Upgrade to Premium'}
                     </Button>
                   </div>
                 </div>

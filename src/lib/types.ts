@@ -83,6 +83,14 @@ export interface User {
   displayName: string | null;
   email: string | null;
   photoURL?: string | null;
+  plan?: 'free' | 'premium';
+  stripeCustomerId?: string;
+  subscriptionStatus?: 'active' | 'canceled' | 'past_due' | 'trialing';
+  limits?: {
+    coursesCreatedTimestamps: string[];
+    whiteboardsCreatedTotal: number;
+    lastWhiteboardCreatedAt?: string;
+  };
 }
 export interface Course {
   id: string;

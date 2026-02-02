@@ -1,13 +1,14 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, User, GoogleAuthProvider, signInWithPopup, sendEmailVerification, sendPasswordResetEmail, updateProfile } from 'firebase/auth';
+import { User as FirebaseUser, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup, sendEmailVerification, sendPasswordResetEmail, updateProfile } from 'firebase/auth';
+import { User as AppUser } from '@/lib/types';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
-import { doc, setDoc } from 'firebase/firestore';
 import { usePathname, useRouter } from 'next/navigation';
 
 interface AuthContextType {
-  user: User | null;
+  user: (FirebaseUser & AppUser) | null;
   loading: boolean;
   signup: (email: string, password: string) => Promise<any>;
   login: (email: string, password: string) => Promise<any>;
@@ -21,7 +22,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   // Using `undefined` to denote the initial state where auth status is not yet determined.
-  const [user, setUser] = useState<User | null | undefined>(undefined);
+  const [user, setUser] = useState<(FirebaseUser & AppUser) | null | undefined>(undefined);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -30,17 +31,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
-        // Sync user profile with Firestore
+        // Fetch full profile
         const userRef = doc(db, 'users', currentUser.uid);
-        await setDoc(userRef, {
-          displayName: currentUser.displayName,
-          email: currentUser.email,
-          photoURL: currentUser.photoURL,
-          uid: currentUser.uid,
-          lastLogin: new Date().toISOString(),
-        }, { merge: true });
+        const userSnap = await getDoc(userRef);
+
+        let firestoreData = {};
+        if (userSnap.exists()) {
+          firestoreData = userSnap.data();
+        } else {
+          // Create if not exists (though the previous code did setDoc, keeping that logic)
+          firestoreData = {
+            displayName: currentUser.displayName,
+            email: currentUser.email,
+            photoURL: currentUser.photoURL,
+            uid: currentUser.uid,
+            lastLogin: new Date().toISOString(),
+            limits: { coursesCreatedTimestamps: [], whiteboardsCreatedTotal: 0 }
+          };
+          await setDoc(userRef, firestoreData, { merge: true });
+        }
+
+        // Merge Auth user and Firestore data
+        setUser({ ...currentUser, ...firestoreData } as (FirebaseUser & AppUser));
+      } else {
+        setUser(null);
       }
-      setUser(currentUser);
     });
     return () => unsubscribe();
   }, []);
@@ -48,29 +63,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const isAuthPage = ['/login', '/signup', '/', '/verify-email'].includes(pathname);
     if (!loading && user && user.emailVerified && isAuthPage) {
-        router.push('/learn');
+      router.push('/learn');
     }
   }, [user, loading, pathname, router]);
 
   const signup = async (email: string, password: string) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     if (userCredential.user) {
-        const displayName = email.split('@')[0];
-        await updateProfile(userCredential.user, { displayName });
-        
-        const userRef = doc(db, 'users', userCredential.user.uid);
-        await setDoc(userRef, {
-          displayName: displayName,
-          email: userCredential.user.email,
-          uid: userCredential.user.uid,
-          creationTime: new Date().toISOString(),
-        }, { merge: true });
+      const displayName = email.split('@')[0];
+      await updateProfile(userCredential.user, { displayName });
 
-        const updatedUser = auth.currentUser;
-        await updatedUser?.reload();
-        setUser(updatedUser);
+      const userRef = doc(db, 'users', userCredential.user.uid);
+      await setDoc(userRef, {
+        displayName: displayName,
+        email: userCredential.user.email,
+        uid: userCredential.user.uid,
+        creationTime: new Date().toISOString(),
+      }, { merge: true });
 
-        await sendEmailVerification(userCredential.user);
+      const updatedUser = auth.currentUser;
+      await updatedUser?.reload();
+      setUser(updatedUser);
+
+      await sendEmailVerification(userCredential.user);
     }
     return userCredential;
   };
@@ -93,7 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const sendVerificationEmail = async () => {
     if (auth.currentUser) {
-        return sendEmailVerification(auth.currentUser);
+      return sendEmailVerification(auth.currentUser);
     }
     throw new Error("No user is currently signed in.");
   }
