@@ -7,9 +7,8 @@
  * - MarkFreeWriteExerciseOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { ai, llama3Model } from '@/ai/genkit';
 import { z } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
 
 const MarkFreeWriteExerciseInputSchema = z.object({
   lessonContext: z.string().describe('The HTML content of the lesson the user just completed.'),
@@ -55,7 +54,7 @@ const markFreeWriteExerciseFlow = ai.defineFlow(
   },
   async input => {
     // Use a faster, smaller model for this evaluation task.
-    const { output } = await prompt(input, { model: googleAI.model('gemini-1.5-flash') });
+    const { output } = await prompt(input, { model: llama3Model });
     return output!;
   }
 );

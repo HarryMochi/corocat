@@ -3,8 +3,7 @@
  * @fileOverview Validates the topic, then generates a title, outline, and content for a complete course.
  */
 
-import { ai } from '@/ai/genkit';
-import { googleAI } from '@genkit-ai/googleai';
+import { ai, llama3Model } from '@/ai/genkit';
 import {
   GenerateCourseOutlineInputSchema,
   generateCourseOutlinePrompt,
@@ -32,7 +31,7 @@ export type { GenerateFullCourseOutput };
 export type GenerateFullCourseInput = GenerateCourseOutlineInput;
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-const model = googleAI.model('gemini-1.5-flash');
+const model = llama3Model;
 
 // Flow to validate the user's topic
 const validateTopicFlow = ai.defineFlow(

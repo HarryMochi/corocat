@@ -7,9 +7,8 @@
  * - AssistWithNotesOutput - The return type for the assistWithNotes function.
  */
 
-import { ai } from '@/ai/genkit';
+import { ai, llama3Model } from '@/ai/genkit';
 import { z } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
 
 const AssistWithNotesInputSchema = z.object({
   topic: z.string().describe('The topic of the course.'),
@@ -53,7 +52,7 @@ const assistWithNotesFlow = ai.defineFlow(
     outputSchema: AssistWithNotesOutputSchema,
   },
   async input => {
-    const { output } = await prompt(input, { model: googleAI.model('gemini-1.5-flash') });
+    const { output } = await prompt(input, { model: llama3Model });
     return output!;
   }
 );

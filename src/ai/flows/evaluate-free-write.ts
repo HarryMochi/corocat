@@ -8,9 +8,8 @@
  * - EvaluateFreeWriteOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { ai, llama3Model } from '@/ai/genkit';
 import { z } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
 
 const EvaluateFreeWriteInputSchema = z.object({
   lessonContent: z.string().describe('The full HTML content of the lesson the user was taught.'),
@@ -64,7 +63,7 @@ const evaluateFreeWriteFlow = ai.defineFlow(
   },
   async input => {
     // Use a fast and efficient model for this evaluation task.
-    const { output } = await prompt(input, { model: googleAI.model('gemini-1.5-flash') });
+    const { output } = await prompt(input, { model: llama3Model });
     return output!;
   }
 );

@@ -8,9 +8,8 @@
  * - GenerateStepQuizOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { ai, llama3Model } from '@/ai/genkit';
 import { z } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
 
 const GenerateStepQuizInputSchema = z.object({
   topic: z.string().describe('The topic of the course.'),
@@ -73,7 +72,7 @@ const generateStepQuizFlow = ai.defineFlow(
     outputSchema: GenerateStepQuizOutputSchema,
   },
   async input => {
-    const { output } = await prompt(input, { model: googleAI.model('gemini-1.5-flash') });
+    const { output } = await prompt(input, { model: llama3Model });
     if (!output || !output.quiz || output.quiz.length < 6) {
       throw new Error('AI failed to generate a complete quiz for this step.');
     }
