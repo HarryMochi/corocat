@@ -7,11 +7,9 @@ import { generateCourseOutlinePrompt } from '@/ai/flows/generate-course-outline'
 import { generateStepContentPrompt } from '@/ai/flows/generate-step-content';
 import type { CourseData, Step, User } from '@/lib/types';
 import { ai } from '@/ai/genkit';
-import { googleAI } from '@genkit-ai/googleai';
+const model = ai.model('openAI/meta-llama/llama-3.3-70b-instruct:free');
 import { checkWhiteboardLimit } from '@/lib/limits';
 import { FieldValue } from 'firebase-admin/firestore';
-
-const model = googleAI.model('gemini-1.5-flash');
 
 import { adminDb } from '@/lib/admin';
 import { checkCourseLimit } from '@/lib/limits';
