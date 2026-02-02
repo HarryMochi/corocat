@@ -11,6 +11,11 @@ export const ai = genkit({
     openAI({
       apiKey: process.env.OPENROUTER_API_KEY,
       baseURL: "https://openrouter.ai/api/v1",
+      models: [
+        {
+          name: 'meta-llama/llama-3.3-70b-instruct:free',
+        },
+      ],
     }),
   ],
 });
