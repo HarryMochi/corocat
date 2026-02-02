@@ -10,6 +10,7 @@ import {
   generateCourseOutlineAction,
   generateStepContentAction,
   prepareCourseForSaving,
+  createCollaborativeCourse,
 } from './actions';
 import { useAuth } from '@/hooks/use-auth';
 import Logo from '@/components/logo';

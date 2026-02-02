@@ -7,7 +7,8 @@ import { generateCourseOutlinePrompt } from '@/ai/flows/generate-course-outline'
 import { generateStepContentPrompt } from '@/ai/flows/generate-step-content';
 import type { CourseData, Step, User } from '@/lib/types';
 import { ai } from '@/ai/genkit';
-const model = ai.model('openAI/meta-llama/llama-3.3-70b-instruct:free');
+import { modelRef } from 'genkit';
+const model = modelRef({ name: 'openai/meta-llama/llama-3.3-70b-instruct:free' });
 import { checkWhiteboardLimit } from '@/lib/limits';
 import { FieldValue } from 'firebase-admin/firestore';
 
