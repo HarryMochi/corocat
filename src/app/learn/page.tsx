@@ -3,21 +3,21 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Course, Step, QuizSet } from '@/lib/types';
-import { getCoursesForUser, updateCourse, deleteCourse as deleteCourseFromDb, getFriends } from '@/lib/firestore';
+import type { Course, Step, QuizSet } from '../../lib/types';
+import { getCoursesForUser, updateCourse, deleteCourse as deleteCourseFromDb, getFriends } from '../../lib/firestore';
 import { askQuestionAction, assistWithNotesAction, generateQuizAction } from '../actions';
-import { useToast } from "@/hooks/use-toast";
-import HistorySidebar from '@/components/history-sidebar';
-import TopicSelection from '@/components/topic-selection';
-import CourseDisplay from '@/components/course-display';
-import { useAuth } from '@/hooks/use-auth';
+import { useToast } from "../../hooks/use-toast";
+import HistorySidebar from '../../components/history-sidebar';
+import TopicSelection from '../../components/topic-selection';
+import CourseDisplay from '../../components/course-display';
+import { useAuth } from '../../hooks/use-auth';
 import { Loader2 } from 'lucide-react';
-import type { AskStepQuestionOutput, AskStepQuestionInput } from '@/ai/flows/ask-step-question';
-import type { AssistWithNotesOutput } from '@/ai/flows/assist-with-notes';
-import LearnLayout from '@/components/learn-layout';
-import type { Message } from '@/components/step-workspace';
-import type { GenerateStepQuizOutput } from '@/ai/flows/generate-step-quiz';
-import { ShareDialog } from '@/components/share-dialog';
+import type { AskStepQuestionOutput, AskStepQuestionInput } from '../../ai/flows/ask-step-question';
+import type { AssistWithNotesOutput } from '../../ai/flows/assist-with-notes';
+import LearnLayout from '../../components/learn-layout';
+import type { Message } from '../../components/step-workspace';
+import type { GenerateStepQuizOutput } from '../../ai/flows/generate-step-quiz';
+import { ShareDialog } from '../../components/share-dialog';
 
 export default function LearnPage() {
   const [courses, setCourses] = useState<Course[]>([]);

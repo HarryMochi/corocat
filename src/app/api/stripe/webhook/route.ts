@@ -1,132 +1,124 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { getStripeServer } from '../../../../lib/stripe-server';
-import { getFirestoreAdmin } from '../../../../lib/firebase-admin';
 import Stripe from 'stripe';
+import { getFirestore } from 'firebase-admin/firestore';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+
+// Initialize Firebase Admin
+if (getApps().length === 0) {
+  initializeApp({
+    credential: cert({
+      projectId: process.env.FIREBASE_PROJECT_ID!,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL!,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    }),
+  });
+}
+
+const db = getFirestore();
+
+// Initialize Stripe
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2024-11-20.acacia',
+});
 
 export async function POST(req: NextRequest) {
-  console.log('🔔 ============================================');
-  console.log('🔔 WEBHOOK RECEIVED AT:', new Date().toISOString());
-  console.log('🔔 ============================================');
-  
-  const body = await req.text();
-  const stripe = getStripeServer();
-  const signature = headers().get('stripe-signature');
-
-  console.log('📝 Signature present:', signature ? '✅ YES' : '❌ NO');
-
-  if (!signature) {
-    console.error('❌ ERROR: No stripe-signature header found');
-    return NextResponse.json({ error: 'No signature' }, { status: 400 });
-  }
-
-  let event: Stripe.Event;
+  console.log('\n🔔 ==========================================');
+  console.log('🔔 WEBHOOK RECEIVED');
+  console.log('🔔 Time:', new Date().toISOString());
+  console.log('🔔 ==========================================\n');
 
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    );
-    console.log('✅ Webhook signature verified successfully');
+    const body = await req.text();
+    const signature = headers().get('stripe-signature');
+
+    if (!signature) {
+      console.error('❌ No Stripe signature found in headers');
+      return NextResponse.json({ error: 'No signature' }, { status: 400 });
+    }
+
+    console.log('✅ Signature found');
+
+    // Verify webhook signature
+    let event: Stripe.Event;
+    
+    try {
+      event = stripe.webhooks.constructEvent(
+        body,
+        signature,
+        process.env.STRIPE_WEBHOOK_SECRET!
+      );
+      console.log('✅ Webhook signature verified');
+    } catch (err: any) {
+      console.error('❌ Webhook signature verification failed:', err.message);
+      return NextResponse.json(
+        { error: `Webhook Error: ${err.message}` },
+        { status: 400 }
+      );
+    }
+
     console.log('📦 Event type:', event.type);
     console.log('📦 Event ID:', event.id);
-  } catch (err: any) {
-    console.error('❌ ============================================');
-    console.error('❌ WEBHOOK SIGNATURE VERIFICATION FAILED');
-    console.error('❌ Error:', err.message);
-    console.error('❌ ============================================');
-    return NextResponse.json(
-      { error: `Webhook Error: ${err.message}` },
-      { status: 400 }
-    );
-  }
 
-  const db = getFirestoreAdmin();
-
-  try {
+    // Handle checkout.session.completed
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session;
-      
-      console.log('💳 ============================================');
+
+      console.log('\n💳 ==========================================');
       console.log('💳 CHECKOUT SESSION COMPLETED');
-      console.log('💳 ============================================');
+      console.log('💳 ==========================================');
       console.log('Session ID:', session.id);
+      console.log('Payment Status:', session.payment_status);
       console.log('Customer:', session.customer);
       console.log('Subscription:', session.subscription);
       console.log('Client Reference ID:', session.client_reference_id);
       console.log('Amount Total:', session.amount_total);
-      console.log('Payment Status:', session.payment_status);
 
       const userId = session.client_reference_id;
 
       if (!userId) {
-        console.error('❌ ============================================');
-        console.error('❌ CRITICAL ERROR: No client_reference_id found!');
-        console.error('❌ This means the user ID was not passed to Stripe');
-        console.error('❌ Check your payment link includes client_reference_id');
-        console.error('❌ ============================================');
-        return NextResponse.json({ error: 'Missing user ID' }, { status: 400 });
+        console.error('❌ No client_reference_id in session');
+        console.error('Session metadata:', JSON.stringify(session.metadata));
+        return NextResponse.json({ error: 'No user ID provided' }, { status: 400 });
       }
 
-      console.log('👤 ============================================');
-      console.log('👤 USER ID EXTRACTED:', userId);
-      console.log('👤 ============================================');
+      console.log('👤 User ID:', userId);
 
       const subscriptionId = session.subscription as string;
       const customerId = session.customer as string;
 
       if (!subscriptionId) {
-        console.error('❌ No subscription ID found in session');
-        console.error('This might be a one-time payment instead of subscription');
-        return NextResponse.json({ error: 'Missing subscription' }, { status: 400 });
+        console.error('❌ No subscription ID in session');
+        return NextResponse.json({ error: 'No subscription found' }, { status: 400 });
       }
 
-      console.log('🔍 Fetching subscription details from Stripe...');
-      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      console.log('🔍 Fetching subscription from Stripe...');
       
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
       const interval = subscription.items.data[0]?.price?.recurring?.interval;
       const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
 
-      console.log('📅 ============================================');
-      console.log('📅 SUBSCRIPTION DETAILS');
-      console.log('📅 ============================================');
-      console.log('Interval:', interval);
-      console.log('Status:', subscription.status);
-      console.log('Current period end:', currentPeriodEnd.toISOString());
-      console.log('Plan:', interval === 'year' ? 'yearly' : 'monthly');
+      console.log('📅 Subscription interval:', interval);
+      console.log('📅 Status:', subscription.status);
+      console.log('📅 Current period end:', currentPeriodEnd.toISOString());
 
-      // Check if user exists in Firestore
-      console.log('🔍 ============================================');
-      console.log('🔍 CHECKING FIRESTORE FOR USER...');
-      console.log('🔍 ============================================');
+      // Check if user exists
+      console.log('🔍 Checking Firestore for user...');
       
       const userRef = db.collection('users').doc(userId);
-      const userSnap = await userRef.get();
+      const userDoc = await userRef.get();
 
-      if (!userSnap.exists) {
-        console.error('❌ ============================================');
-        console.error('❌ CRITICAL ERROR: User document does NOT exist');
-        console.error('❌ User ID:', userId);
-        console.error('❌ Make sure user is created during signup');
-        console.error('❌ ============================================');
+      if (!userDoc.exists) {
+        console.error('❌ User document not found:', userId);
         return NextResponse.json({ error: 'User not found' }, { status: 404 });
       }
 
-      const userData = userSnap.data();
-      console.log('✅ ============================================');
-      console.log('✅ USER FOUND IN FIRESTORE');
-      console.log('✅ ============================================');
-      console.log('Email:', userData?.email);
-      console.log('Display Name:', userData?.displayName);
-      console.log('Current isPremium:', userData?.isPremium || false);
+      console.log('✅ User found:', userDoc.data()?.email);
 
-      // Update Firestore with premium status
-      console.log('💾 ============================================');
-      console.log('💾 UPDATING FIRESTORE...');
-      console.log('💾 ============================================');
-      
-      await userRef.update({
+      // Update user with premium fields
+      console.log('💾 Updating Firestore...');
+
+      const updateData = {
         isPremium: true,
         stripeCustomerId: customerId,
         stripeSubscriptionId: subscriptionId,
@@ -134,27 +126,28 @@ export async function POST(req: NextRequest) {
         subscriptionPlan: interval === 'year' ? 'yearly' : 'monthly',
         currentPeriodEnd: currentPeriodEnd,
         updatedAt: new Date(),
-      });
+      };
 
-      console.log('✅ ============================================');
-      console.log('✅ ✅ ✅ SUCCESS! USER UPGRADED TO PREMIUM ✅ ✅ ✅');
-      console.log('✅ ============================================');
+      await userRef.update(updateData);
+
+      console.log('\n✅ ==========================================');
+      console.log('✅ SUCCESS! USER UPGRADED TO PREMIUM');
+      console.log('✅ ==========================================');
       console.log('User ID:', userId);
-      console.log('Email:', userData?.email);
+      console.log('Email:', userDoc.data()?.email);
       console.log('Plan:', interval === 'year' ? 'yearly' : 'monthly');
-      console.log('isPremium: true');
       console.log('Expires:', currentPeriodEnd.toISOString());
-      console.log('✅ ============================================');
+      console.log('✅ ==========================================\n');
 
       return NextResponse.json({ 
         received: true, 
-        updated: true,
-        userId: userId,
-        plan: interval === 'year' ? 'yearly' : 'monthly'
+        success: true,
+        userId,
+        plan: updateData.subscriptionPlan
       });
     }
 
-    // Handle subscription updates
+    // Handle subscription updated
     if (event.type === 'customer.subscription.updated') {
       const subscription = event.data.object as Stripe.Subscription;
       console.log('🔄 Subscription updated:', subscription.id);
@@ -180,7 +173,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Handle subscription cancellation
+    // Handle subscription deleted
     if (event.type === 'customer.subscription.deleted') {
       const subscription = event.data.object as Stripe.Subscription;
       console.log('❌ Subscription canceled:', subscription.id);
@@ -207,15 +200,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true });
 
   } catch (error: any) {
-    console.error('❌ ============================================');
-    console.error('❌ ERROR PROCESSING WEBHOOK');
-    console.error('❌ ============================================');
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
-    console.error('❌ ============================================');
-    
+    console.error('\n❌ ==========================================');
+    console.error('❌ WEBHOOK ERROR');
+    console.error('❌ ==========================================');
+    console.error('Message:', error.message);
+    console.error('Stack:', error.stack);
+    console.error('❌ ==========================================\n');
+
     return NextResponse.json(
-      { error: 'Webhook processing failed', details: error.message },
+      { error: 'Webhook handler failed', details: error.message },
       { status: 500 }
     );
   }
