@@ -11,7 +11,7 @@ import { BookOpenCheck, Zap, Bot, Star, Mail, Users, Sparkles, Rocket, CheckCirc
 import { useAuth } from '../hooks/use-auth';
 import MainLayout from '../components/main-layout';
 import { Decorations } from '../components/decorations';
-import { Card, CardContent } from '../components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from '../components/ui/carousel';
 import { Avatar, AvatarFallback } from '../components/ui/avatar';
 import { cn } from '../lib/utils';
