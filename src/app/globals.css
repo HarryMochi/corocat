@@ -5,6 +5,7 @@
 body {
   line-height: 1.7;
 }
+
 html {
   scroll-behavior: smooth;
 }
@@ -46,15 +47,16 @@ html {
     --sidebar-ring: 25 65% 45%;
     --footer-background: 30 30% 85%;
   }
-}
 
-@layer base {
   * {
-    @apply border-border;
+    border-color: hsl(var(--border));
   }
+
   body {
-    @apply bg-background text-foreground;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
   }
+
   .prose {
     --tw-prose-body: hsl(var(--foreground) / 0.9);
     --tw-prose-headings: hsl(var(--foreground));
@@ -73,16 +75,20 @@ html {
     --tw-prose-th-borders: hsl(var(--border));
     --tw-prose-td-borders: hsl(var(--border));
   }
+
   .prose blockquote {
     @apply border-l-4 border-accent bg-accent/10 p-4 rounded-r-lg;
   }
+
   .prose pre {
     @apply text-[--tw-prose-pre-code] rounded-lg border whitespace-pre-wrap max-h-[650px] overflow-auto;
     background-color: beige !important;
   }
+
   .prose code {
     @apply bg-primary/10 text-[--tw-prose-code] rounded px-1.5 py-1 font-medium;
   }
+
   .prose pre code {
     @apply bg-transparent rounded-none p-0 font-normal;
   }
@@ -90,30 +96,33 @@ html {
 
 @layer utilities {
   .screenshot-container {
-      perspective: 1500px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+    perspective: 1500px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
   }
+
   .screenshot-image {
-      transform: rotateX(15deg) rotateY(-20deg);
-      transform-origin: 0% 100%;
-      box-shadow: 
-          0 50px 100px -20px rgba(0, 0, 0, 0.2), 
-          0 30px 60px -30px rgba(0, 0, 0, 0.3);
-      mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
+    transform: rotateX(15deg) rotateY(-20deg);
+    transform-origin: 0% 100%;
+    box-shadow:
+      0 50px 100px -20px rgba(0, 0, 0, 0.2),
+      0 30px 60px -30px rgba(0, 0, 0, 0.3);
+    mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
   }
+
   @media (max-width: 768px) {
-      .screenshot-image {
-          transform: rotateX(5deg) rotateY(-5deg) scale(0.95);
-      }
+    .screenshot-image {
+      transform: rotateX(5deg) rotateY(-5deg) scale(0.95);
+    }
   }
 
   .hide-scrollbar {
     scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none;  /* Internet Explorer 10+ */
+    -ms-overflow-style: none; /* Internet Explorer 10+ */
   }
+
   .hide-scrollbar::-webkit-scrollbar {
-      display: none; /* Safari and Chrome */
+    display: none; /* Safari and Chrome */
   }
 }

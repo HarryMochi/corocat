@@ -5,58 +5,36 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Button } from '@/components/ui/button';
-import Logo from '@/components/logo';
+import { Button } from '../components/ui/button';
+import Logo from '../components/logo';
 import { BookOpenCheck, Zap, Bot, Star, Mail, Users, Sparkles, Rocket, CheckCircle2, XCircle, ArrowRight } from 'lucide-react';
-import { useAuth } from '@/hooks/use-auth';
-import MainLayout from '@/components/main-layout';
-import { Decorations } from '@/components/decorations';
+import { useAuth } from '../hooks/use-auth';
+import MainLayout from '../components/main-layout';
+import { Decorations } from '../components/decorations';
 
-import { Card, CardContent } from '@/components/ui/card';
-import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from '@/components/ui/carousel';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { cn } from '@/lib/utils';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { Card, CardContent } from '../components/ui/card';
+import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from '../components/ui/carousel';
+import { Avatar, AvatarFallback } from '../components/ui/avatar';
+import { cn } from '../lib/utils';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '../components/ui/dropdown-menu';
 
 // Discord icon component
 const DiscordIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-    <path d="M20.317 4.37a19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 0 0 0-5.487 0 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
+    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
   </svg>
 );
+
+// 🔥 STRIPE PAYMENT LINKS - Define at the top
+const STRIPE_PAYMENT_LINKS = {
+  monthly: 'https://buy.stripe.com/test_aFa3cv1QP5t07zbdkh4Ja01',
+  yearly: 'https://buy.stripe.com/test_YOUR_YEARLY_LINK_HERE', // Replace with your actual yearly link
+};
 
 export default function LandingPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [loadingCheckout, setLoadingCheckout] = useState(false);
-
-  const onUpgrade = async () => {
-    if (!user) {
-      router.push('/signup');
-      return;
-    }
-
-    setLoadingCheckout(true);
-    try {
-      const response = await fetch('/api/stripe/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.uid, plan: 'premium' })
-      });
-
-      if (!response.ok) throw new Error('Failed to start checkout');
-
-      const data = await response.json();
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    } catch (error) {
-      console.error(error);
-      alert('Something went wrong. Please try again.');
-    } finally {
-      setLoadingCheckout(false);
-    }
-  };
   const [scrollY, setScrollY] = useState(0);
   const [isYearly, setIsYearly] = useState(false);
 
@@ -65,6 +43,111 @@ export default function LandingPage() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // 🔥 UPGRADE BUTTON HANDLER
+  const onUpgrade = () => {
+    console.log('🎯 Upgrade button clicked');
+    console.log('👤 Current user:', user?.email || 'No user');
+    
+    if (!user) {
+      console.log('🔐 User not authenticated - redirecting to signup');
+      sessionStorage.setItem('pendingUpgrade', 'true');
+      sessionStorage.setItem('selectedPlan', isYearly ? 'yearly' : 'monthly');
+      console.log('💾 Saved to sessionStorage:', {
+        pendingUpgrade: 'true',
+        selectedPlan: isYearly ? 'yearly' : 'monthly'
+      });
+      router.push('/signup');
+      return;
+    }
+
+    console.log('✅ User authenticated - redirecting to Stripe immediately');
+    redirectToStripe();
+  };
+
+  // 🔥 STRIPE REDIRECT FUNCTION
+  const redirectToStripe = () => {
+    const paymentLink = isYearly 
+      ? STRIPE_PAYMENT_LINKS.yearly 
+      : STRIPE_PAYMENT_LINKS.monthly;
+
+    console.log('💳 Selected payment link:', paymentLink);
+    console.log('👤 User UID:', user?.uid);
+    console.log('📧 User email:', user?.email);
+
+    try {
+      const url = new URL(paymentLink);
+      url.searchParams.set('client_reference_id', user!.uid);
+      if (user!.email) {
+        url.searchParams.set('prefilled_email', user!.email);
+      }
+
+      console.log('🚀 Final Stripe URL:', url.toString());
+      
+      setLoadingCheckout(true);
+      
+      // Redirect to Stripe
+      setTimeout(() => {
+        window.location.href = url.toString();
+      }, 300);
+    } catch (error) {
+      console.error('❌ Error building Stripe URL:', error);
+      alert('Failed to start checkout. Please try again.');
+      setLoadingCheckout(false);
+    }
+  };
+
+  // 🔥 POST-SIGNUP REDIRECT TO STRIPE
+  useEffect(() => {
+    console.log('🔍 Post-signup effect running...');
+    console.log('User state:', user?.email || 'No user');
+    console.log('pendingUpgrade:', sessionStorage.getItem('pendingUpgrade'));
+    console.log('selectedPlan:', sessionStorage.getItem('selectedPlan'));
+
+    if (!user) {
+      console.log('⏸️ No user yet, waiting for authentication...');
+      return;
+    }
+
+    const hasPendingUpgrade = sessionStorage.getItem('pendingUpgrade') === 'true';
+    
+    if (hasPendingUpgrade) {
+      console.log('🎉 User authenticated with pending upgrade detected!');
+      
+      // Clear the flags first
+      sessionStorage.removeItem('pendingUpgrade');
+      const plan = sessionStorage.getItem('selectedPlan') || 'monthly';
+      sessionStorage.removeItem('selectedPlan');
+      
+      console.log('📦 Proceeding with plan:', plan);
+      
+      // Build Stripe URL
+      const paymentLink = plan === 'yearly' 
+        ? STRIPE_PAYMENT_LINKS.yearly 
+        : STRIPE_PAYMENT_LINKS.monthly;
+      
+      try {
+        const url = new URL(paymentLink);
+        url.searchParams.set('client_reference_id', user.uid);
+        if (user.email) {
+          url.searchParams.set('prefilled_email', user.email);
+        }
+        
+        console.log('🚀 Redirecting to Stripe in 1 second...');
+        console.log('🔗 URL:', url.toString());
+        
+        // Redirect after a short delay to ensure state is settled
+        setTimeout(() => {
+          window.location.href = url.toString();
+        }, 1000);
+      } catch (error) {
+        console.error('❌ Error building Stripe URL:', error);
+        alert('Failed to redirect to payment. Please try clicking "Upgrade to Premium" again.');
+      }
+    } else {
+      console.log('ℹ️ No pending upgrade found');
+    }
+  }, [user]);
 
   const testimonials = [
     {
@@ -122,32 +205,29 @@ export default function LandingPage() {
         <header className="container mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between animate-fade-in-down relative z-10">
           <Logo />
           <div className="flex items-center gap-4">
-            {!loading && (
+            {user ? (
               <>
-                {user ? (
-                  <>
-                    <Button variant="ghost" size="icon"><Mail className="h-5 w-5" /></Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon"><Users className="h-5 w-5" /></Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuItem>Add Friend</DropdownMenuItem>
-                        <DropdownMenuItem>My Friends</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                    <Button asChild className="rounded-full"><Link href="/learn">Go to App</Link></Button>
-                  </>
-                ) : (
-                  <>
-                    <Button variant="ghost" asChild className="rounded-full border-orange-500 border"><Link href="/login">Log In</Link></Button>
-                    <Button asChild className="rounded-full"><Link href="/signup">Sign Up</Link></Button>
-                  </>
-                )}
+                <Button variant="ghost" size="icon"><Mail className="h-5 w-5" /></Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon"><Users className="h-5 w-5" /></Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem>Add Friend</DropdownMenuItem>
+                    <DropdownMenuItem>My Friends</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button asChild className="rounded-full"><Link href="/learn">Go to App</Link></Button>
+              </>
+            ) : (
+              <>
+                <Button variant="ghost" asChild className="rounded-full border-orange-500 border"><Link href="/login">Log In</Link></Button>
+                <Button asChild className="rounded-full"><Link href="/signup">Sign Up</Link></Button>
               </>
             )}
           </div>
         </header>
+
         <main className="flex-1">
           {/* Hero */}
           <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-40 flex flex-col items-center text-center relative z-10">
@@ -171,7 +251,7 @@ export default function LandingPage() {
               </Button>
             </div>
 
-            {/* Restored Social Proof */}
+            {/* Social Proof */}
             <div className="mt-12 flex items-center justify-center gap-8 text-sm text-muted-foreground animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
               <div className="flex items-center gap-2">
                 <div className="flex -space-x-2">
@@ -197,7 +277,7 @@ export default function LandingPage() {
             </div>
           </section>
 
-          {/* Restored Screenshot Section */}
+          {/* Screenshot Section */}
           <section className="relative z-10 py-16 sm:py-24 overflow-hidden">
             <div className="container mx-auto px-4">
               <div className="relative group mx-auto max-w-5xl">
@@ -216,7 +296,7 @@ export default function LandingPage() {
             </div>
           </section>
 
-          {/* Restored Inside Corocat Section */}
+          {/* Inside Corocat Section */}
           <section className="bg-background py-24 relative z-10 border-y border-white/5">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="text-center mb-16">
@@ -227,23 +307,16 @@ export default function LandingPage() {
               </div>
               <div className="grid md:grid-cols-3 gap-8">
                 {[
-                  { title: "Course Dashboard", desc: "Track your learning journey", video: "/videos/dashboard.mp4" },
-                  { title: "AI Study Assistant", desc: "Get instant help and explanations", video: "/videos/assistant.mp4" },
-                  { title: "Course Marketplace", desc: "Share and discover new paths", video: "/videos/marketplace.mp4" }
+                  { title: "Course Dashboard", desc: "Track your learning journey" },
+                  { title: "AI Study Assistant", desc: "Get instant help and explanations" },
+                  { title: "Course Marketplace", desc: "Share and discover new paths" }
                 ].map((feature, i) => (
-                  <div key={i} className="group relative aspect-video rounded-2xl overflow-hidden border border-white/10 bg-black shadow-xl hover:-translate-y-2 transition-all duration-500">
-                    <video
-                      src={feature.video}
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                      className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-                    <div className="absolute bottom-0 left-0 p-6">
-                      <h3 className="text-xl font-bold text-white mb-1">{feature.title}</h3>
-                      <p className="text-sm text-gray-400 group-hover:text-white transition-colors">{feature.desc}</p>
+                  <div key={i} className="group relative aspect-video rounded-2xl overflow-hidden border border-white/10 bg-gradient-to-br from-primary/20 to-accent/20 shadow-xl hover:-translate-y-2 transition-all duration-500">
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center">
+                        <h3 className="text-xl font-bold text-white mb-1">{feature.title}</h3>
+                        <p className="text-sm text-gray-300">{feature.desc}</p>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -303,9 +376,8 @@ export default function LandingPage() {
             </div>
           </section>
 
-          {/* Pricing Section - Redesigned */}
+          {/* Pricing Section */}
           <section id="pricing" className="py-24 bg-background relative overflow-hidden">
-            {/* Background elements for depth - subtle light blobs */}
             <div className="absolute top-1/2 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-[120px]" />
             <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/5 rounded-full blur-[120px]" />
 
@@ -381,10 +453,8 @@ export default function LandingPage() {
 
                 {/* Premium Plan */}
                 <div className="group relative flex flex-col bg-white rounded-[2.5rem] overflow-hidden border-2 border-primary/30 shadow-[0_30px_60px_-15px_rgba(var(--primary),0.1)] transition-all duration-300 hover:shadow-[0_40px_80px_-15px_rgba(var(--primary),0.2)] hover:-translate-y-2">
-                  {/* Visual Accent - Top Gradient Strip */}
                   <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-primary via-accent to-primary animate-gradient-x" />
 
-                  {/* Most Popular Badge */}
                   <div className="absolute top-6 right-6">
                     <div className="inline-flex items-center gap-1.5 py-1 px-4 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest rounded-full shadow-lg shadow-primary/20">
                       <Sparkles className="w-3 h-3" />
@@ -393,7 +463,6 @@ export default function LandingPage() {
                   </div>
 
                   <div className="p-10 flex flex-col h-full relative">
-                    {/* Nitro-style Background Glow */}
                     <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/5 rounded-full blur-[80px] group-hover:bg-primary/10 transition-colors" />
 
                     <div className="mb-8 relative">
@@ -438,19 +507,19 @@ export default function LandingPage() {
                       disabled={loadingCheckout}
                       className="w-full py-7 rounded-2xl font-bold text-base transition-all duration-300 shadow-xl shadow-primary/20 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98]"
                     >
-                      {loadingCheckout ? 'Loading...' : 'Upgrade to Premium'}
+                      {loadingCheckout ? 'Redirecting to Stripe...' : 'Upgrade to Premium'}
                     </Button>
                   </div>
                 </div>
               </div>
 
-              {/* Trust Subtext */}
               <p className="text-center mt-12 text-sm text-muted-foreground font-medium">
                 No hidden fees. Cancel anytime. All prices in USD.
               </p>
             </div>
           </section>
         </main>
+
         {/* Footer */}
         <footer className="bg-footer-background text-foreground py-12">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">

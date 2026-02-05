@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useMemo } from 'react';
-import type { Course, Step } from '@/lib/types';
-import { Progress } from '@/components/ui/progress';
+import type { Course, Step } from '../lib/types';
+import { Progress } from '../components/ui/progress';
 import { StepList } from './step-list';
-import type { AskStepQuestionInput, AskStepQuestionOutput } from '@/ai/flows/ask-step-question';
-import type { AssistWithNotesOutput } from '@/ai/flows/assist-with-notes';
+import type { AskStepQuestionInput, AskStepQuestionOutput } from '../ai/flows/ask-step-question';
+import type { AssistWithNotesOutput } from '../ai/flows/assist-with-notes';
 import { StepWorkspace, type Message } from './step-workspace';
-import type { GenerateStepQuizOutput } from '@/ai/flows/generate-step-quiz';
+import type { GenerateStepQuizOutput } from '../ai/flows/generate-step-quiz';
 import { Button } from './ui/button';
 import { Share2, Users, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -21,7 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+} from "../components/ui/alert-dialog";
 
 interface CourseDisplayProps {
   course: Course;
