@@ -11,25 +11,20 @@ import { BookOpenCheck, Zap, Bot, Star, Mail, Users, Sparkles, Rocket, CheckCirc
 import { useAuth } from '../hooks/use-auth';
 import MainLayout from '../components/main-layout';
 import { Decorations } from '../components/decorations';
-
 import { Card, CardContent } from '../components/ui/card';
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from '../components/ui/carousel';
 import { Avatar, AvatarFallback } from '../components/ui/avatar';
 import { cn } from '../lib/utils';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '../components/ui/dropdown-menu';
 
-// Discord icon component
 const DiscordIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
     <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
   </svg>
 );
 
-// 🔥 STRIPE PAYMENT LINKS - Define at the top
-const STRIPE_PAYMENT_LINKS = {
-  monthly: 'https://buy.stripe.com/test_aFa3cv1QP5t07zbdkh4Ja01',
-  yearly: 'https://buy.stripe.com/test_YOUR_YEARLY_LINK_HERE', // Replace with your actual yearly link
-};
+// 🔥 YOUR STRIPE PAYMENT LINK
+const STRIPE_PAYMENT_LINK = 'https://buy.stripe.com/test_aFa3cv1QP5t07zbdkh4Ja01';
 
 export default function LandingPage() {
   const { user, loading: authLoading } = useAuth();
@@ -44,43 +39,43 @@ export default function LandingPage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // 🔥 UPGRADE BUTTON HANDLER
+  // 🔥 FIX: Upgrade button handler
   const onUpgrade = () => {
-    console.log('🎯 Upgrade button clicked');
-    console.log('👤 Current user:', user?.email || 'No user');
+    console.log('🎯 Upgrade clicked');
+    console.log('👤 User:', user?.email || 'Not logged in');
     
     if (!user) {
-      console.log('🔐 User not authenticated - redirecting to signup');
+      console.log('🔐 No user - redirecting to SIGNUP');
       sessionStorage.setItem('pendingUpgrade', 'true');
       sessionStorage.setItem('selectedPlan', isYearly ? 'yearly' : 'monthly');
-      console.log('💾 Saved to sessionStorage:', {
-        pendingUpgrade: 'true',
-        selectedPlan: isYearly ? 'yearly' : 'monthly'
-      });
-      router.push('/signup');
+      router.push('/signup'); // ✅ FIXED: Changed from /login to /signup
       return;
     }
 
-    console.log('✅ User authenticated - redirecting to Stripe immediately');
+    console.log('✅ User authenticated - redirecting to Stripe');
     redirectToStripe();
   };
 
-  // 🔥 STRIPE REDIRECT FUNCTION
+  // 🔥 Stripe redirect function
   const redirectToStripe = () => {
-    const paymentLink = isYearly 
-      ? STRIPE_PAYMENT_LINKS.yearly 
-      : STRIPE_PAYMENT_LINKS.monthly;
+    if (!user) return;
 
-    console.log('💳 Selected payment link:', paymentLink);
-    console.log('👤 User UID:', user?.uid);
-    console.log('📧 User email:', user?.email);
+    console.log('💳 Building Stripe URL...');
+    console.log('User ID:', user.uid);
+    console.log('Email:', user.email);
 
     try {
-      const url = new URL(paymentLink);
-      url.searchParams.set('client_reference_id', user!.uid);
-      if (user!.email) {
-        url.searchParams.set('prefilled_email', user!.email);
+      const url = new URL(STRIPE_PAYMENT_LINK);
+      
+      // 🔥 CRITICAL: Add user ID and email
+      url.searchParams.set('client_reference_id', user.uid);
+      if (user.email) {
+        url.searchParams.set('prefilled_email', user.email);
       }
+      
+      // 🔥 CRITICAL: Add success URL to redirect back to /learn
+      url.searchParams.set('success_url', `${window.location.origin}/learn?success=true`);
+      url.searchParams.set('cancel_url', `${window.location.origin}/?canceled=true`);
 
       console.log('🚀 Final Stripe URL:', url.toString());
       
@@ -97,55 +92,32 @@ export default function LandingPage() {
     }
   };
 
-  // 🔥 POST-SIGNUP REDIRECT TO STRIPE
+  // 🔥 FIX: Handle post-signup redirect to Stripe
   useEffect(() => {
-    console.log('🔍 Post-signup effect running...');
-    console.log('User state:', user?.email || 'No user');
-    console.log('pendingUpgrade:', sessionStorage.getItem('pendingUpgrade'));
-    console.log('selectedPlan:', sessionStorage.getItem('selectedPlan'));
+    console.log('🔍 Checking for pending upgrade...');
+    console.log('User:', user?.email || 'No user');
+    console.log('Pending upgrade:', sessionStorage.getItem('pendingUpgrade'));
 
     if (!user) {
-      console.log('⏸️ No user yet, waiting for authentication...');
+      console.log('⏸️ No user yet');
       return;
     }
 
     const hasPendingUpgrade = sessionStorage.getItem('pendingUpgrade') === 'true';
     
     if (hasPendingUpgrade) {
-      console.log('🎉 User authenticated with pending upgrade detected!');
+      console.log('🎉 User logged in with pending upgrade!');
       
-      // Clear the flags first
+      // Clear flags
       sessionStorage.removeItem('pendingUpgrade');
-      const plan = sessionStorage.getItem('selectedPlan') || 'monthly';
       sessionStorage.removeItem('selectedPlan');
       
-      console.log('📦 Proceeding with plan:', plan);
+      console.log('🚀 Redirecting to Stripe...');
       
-      // Build Stripe URL
-      const paymentLink = plan === 'yearly' 
-        ? STRIPE_PAYMENT_LINKS.yearly 
-        : STRIPE_PAYMENT_LINKS.monthly;
-      
-      try {
-        const url = new URL(paymentLink);
-        url.searchParams.set('client_reference_id', user.uid);
-        if (user.email) {
-          url.searchParams.set('prefilled_email', user.email);
-        }
-        
-        console.log('🚀 Redirecting to Stripe in 1 second...');
-        console.log('🔗 URL:', url.toString());
-        
-        // Redirect after a short delay to ensure state is settled
-        setTimeout(() => {
-          window.location.href = url.toString();
-        }, 1000);
-      } catch (error) {
-        console.error('❌ Error building Stripe URL:', error);
-        alert('Failed to redirect to payment. Please try clicking "Upgrade to Premium" again.');
-      }
-    } else {
-      console.log('ℹ️ No pending upgrade found');
+      // Redirect after short delay
+      setTimeout(() => {
+        redirectToStripe();
+      }, 1000);
     }
   }, [user]);
 
@@ -201,6 +173,7 @@ export default function LandingPage() {
     <MainLayout>
       <div className="flex flex-col min-h-screen bg-background">
         <Decorations scrollY={scrollY} />
+        
         {/* Header */}
         <header className="container mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between animate-fade-in-down relative z-10">
           <Logo />
@@ -229,7 +202,7 @@ export default function LandingPage() {
         </header>
 
         <main className="flex-1">
-          {/* Hero */}
+          {/* Hero Section */}
           <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-40 flex flex-col items-center text-center relative z-10">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full mb-8 border border-primary/20">
               <Sparkles className="w-4 h-4 text-primary" />
@@ -244,8 +217,8 @@ export default function LandingPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Button asChild size="lg" className="text-lg px-8 py-6 rounded-full group">
-                <Link href="#how-it-works" className="flex items-center gap-2">
-                  See How It Works
+                <Link href="#pricing" className="flex items-center gap-2">
+                  Get Started Free
                   <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                 </Link>
               </Button>
@@ -393,66 +366,49 @@ export default function LandingPage() {
                 <p className="text-muted-foreground max-w-2xl mx-auto text-lg mb-8">
                   Start your learning journey for free or upgrade to unlock more power.
                 </p>
-
-                {/* Pricing Toggle */}
-                <div className="flex items-center justify-center gap-4 mb-12">
-                  <span className={cn("text-sm font-medium transition-colors", !isYearly ? "text-foreground" : "text-muted-foreground")}>Monthly</span>
-                  <button
-                    onClick={() => setIsYearly(!isYearly)}
-                    className="relative w-14 h-7 bg-muted rounded-full p-1 transition-colors hover:bg-muted/80"
-                  >
-                    <div className={cn(
-                      "w-5 h-5 bg-primary rounded-full transition-transform duration-300 shadow-sm",
-                      isYearly ? "translate-x-7" : "translate-x-0"
-                    )} />
-                  </button>
-                  <span className={cn("text-sm font-medium transition-colors", isYearly ? "text-foreground" : "text-muted-foreground")}>Yearly</span>
-                  <span className="ml-2 px-2 py-0.5 bg-green-500/10 text-green-500 text-[10px] font-bold uppercase tracking-wider rounded-full border border-green-500/20">
-                    Save 15%
-                  </span>
-                </div>
               </div>
 
               <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto items-stretch">
                 {/* Free Plan */}
-                <div className="group relative flex flex-col bg-card rounded-[2.5rem] overflow-hidden border border-border shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
-                  <div className="p-10 flex flex-col h-full">
-                    <div className="mb-8">
-                      <div className="flex items-center gap-2 mb-4">
-                        <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground bg-muted px-3 py-1 rounded-full">Foundation</span>
-                      </div>
-                      <h3 className="text-3xl font-bold text-foreground mb-2">Free</h3>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-5xl font-black text-foreground">$0</span>
-                        <span className="text-muted-foreground text-sm font-medium">/ forever</span>
-                      </div>
-                      <p className="mt-4 text-muted-foreground text-sm leading-relaxed font-medium">
-                        The perfect baseline for curious minds starting their learning journey.
-                      </p>
+                <Card className="border-border/50 bg-gradient-to-br from-background to-muted/30">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Star className="w-4 h-4 text-muted-foreground" />
+                      Foundation
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <h3 className="text-3xl font-bold mb-2">Free</h3>
+                    <div className="flex items-baseline gap-1 mb-4">
+                      <span className="text-5xl font-black">$0</span>
+                      <span className="text-muted-foreground text-sm">/forever</span>
                     </div>
+                    <p className="text-sm text-muted-foreground mb-6">
+                      The perfect baseline for curious minds starting their learning journey.
+                    </p>
 
-                    <div className="space-y-4 mb-10 flex-grow">
+                    <div className="space-y-3 mb-8">
                       {[
-                        { text: "3 course creations per hour", active: true },
-                        { text: "3 total whiteboards (lifetime)", active: true },
-                        { text: "AI Study Assistant access", active: true },
-                        { text: "Standard profile styling", active: true },
+                        "3 course creations per hour",
+                        "3 total whiteboards (lifetime)",
+                        "AI Study Assistant access",
+                        "Standard profile styling",
                       ].map((feature, i) => (
                         <div key={i} className="flex items-center gap-3">
                           <CheckCircle2 className="w-5 h-5 text-green-500/80 flex-shrink-0" />
-                          <span className="text-sm font-medium text-foreground/70">{feature.text}</span>
+                          <span className="text-sm font-medium text-foreground/70">{feature}</span>
                         </div>
                       ))}
                     </div>
 
-                    <Button asChild variant="outline" className="w-full py-7 rounded-2xl font-bold text-base transition-all duration-300 border-2 border-primary/20 hover:border-primary hover:bg-primary/5 hover:text-primary">
+                    <Button asChild variant="outline" className="w-full py-6 rounded-2xl font-bold">
                       <Link href="/signup">Get Started</Link>
                     </Button>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
 
                 {/* Premium Plan */}
-                <div className="group relative flex flex-col bg-white rounded-[2.5rem] overflow-hidden border-2 border-primary/30 shadow-[0_30px_60px_-15px_rgba(var(--primary),0.1)] transition-all duration-300 hover:shadow-[0_40px_80px_-15px_rgba(var(--primary),0.2)] hover:-translate-y-2">
+                <Card className="border-2 border-primary/30 bg-white shadow-[0_30px_60px_-15px_rgba(var(--primary),0.1)] transition-all duration-300 hover:shadow-[0_40px_80px_-15px_rgba(var(--primary),0.2)] hover:-translate-y-2">
                   <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-primary via-accent to-primary animate-gradient-x" />
 
                   <div className="absolute top-6 right-6">
@@ -462,42 +418,37 @@ export default function LandingPage() {
                     </div>
                   </div>
 
-                  <div className="p-10 flex flex-col h-full relative">
-                    <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/5 rounded-full blur-[80px] group-hover:bg-primary/10 transition-colors" />
-
-                    <div className="mb-8 relative">
-                      <div className="flex items-center gap-2 mb-4">
-                        <span className="text-xs font-bold uppercase tracking-widest text-primary bg-primary/10 px-3 py-1 rounded-full">Professional</span>
-                      </div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-3xl font-extrabold text-foreground tracking-tight">Premium</h3>
-                      </div>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-5xl font-black text-foreground">${isYearly ? '10' : '12'}</span>
-                        <span className="text-muted-foreground text-sm font-medium">/ month</span>
-                      </div>
-                      <p className="mt-4 text-muted-foreground text-sm leading-relaxed font-medium">
-                        Unlock the full potential of Corocat with enhanced power and exclusive style.
-                      </p>
+                  <CardHeader className="pb-3 pt-10">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Star className="w-4 h-4 text-primary" />
+                      Professional
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <h3 className="text-3xl font-bold mb-2">Premium</h3>
+                    <div className="flex items-baseline gap-1 mb-4">
+                      <span className="text-5xl font-black">$12</span>
+                      <span className="text-muted-foreground text-sm">/month</span>
                     </div>
+                    <p className="text-sm text-muted-foreground mb-6">
+                      Unlock the full potential of Corocat with enhanced power and exclusive style.
+                    </p>
 
-                    <div className="space-y-4 mb-10 flex-grow">
+                    <div className="space-y-3 mb-8">
                       {[
-                        { text: "10 course creations per hour", highlight: true },
-                        { text: "20 total whiteboards", highlight: true },
-                        { text: "Enhanced Profile page", highlight: true },
-                        { text: "Faster course generation", highlight: true },
-                        { text: "Better and more aimed output", highlight: true },
-                        { text: "Gradient Username", highlight: true },
-                        { text: "Visually enhanced profile styling", highlight: true },
+                        "10 course creations per hour",
+                        "20 total whiteboards",
+                        "Enhanced Profile page",
+                        "Faster course generation",
+                        "Better and more aimed output",
+                        "Gradient Username",
+                        "Visually enhanced profile",
                       ].map((feature, i) => (
                         <div key={i} className="flex items-center gap-3">
                           <div className="bg-primary/10 rounded-full p-0.5">
                             <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />
                           </div>
-                          <span className={cn("text-sm transition-colors", feature.highlight ? "font-bold text-foreground" : "font-medium text-foreground/70")}>
-                            {feature.text}
-                          </span>
+                          <span className="text-sm font-bold text-foreground">{feature}</span>
                         </div>
                       ))}
                     </div>
@@ -505,12 +456,12 @@ export default function LandingPage() {
                     <Button
                       onClick={onUpgrade}
                       disabled={loadingCheckout}
-                      className="w-full py-7 rounded-2xl font-bold text-base transition-all duration-300 shadow-xl shadow-primary/20 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98]"
+                      className="w-full py-6 rounded-2xl font-bold shadow-xl shadow-primary/20 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98]"
                     >
-                      {loadingCheckout ? 'Redirecting to Stripe...' : 'Upgrade to Premium'}
+                      {loadingCheckout ? 'Redirecting...' : 'Upgrade to Premium'}
                     </Button>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               </div>
 
               <p className="text-center mt-12 text-sm text-muted-foreground font-medium">

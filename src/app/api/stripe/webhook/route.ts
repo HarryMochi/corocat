@@ -6,6 +6,7 @@ import { initializeApp, getApps, cert } from 'firebase-admin/app';
 
 // Initialize Firebase Admin
 if (getApps().length === 0) {
+  console.log('🔥 Initializing Firebase Admin for webhooks...');
   initializeApp({
     credential: cert({
       projectId: process.env.FIREBASE_PROJECT_ID!,
@@ -13,11 +14,10 @@ if (getApps().length === 0) {
       privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
     }),
   });
+  console.log('✅ Firebase Admin initialized');
 }
 
 const db = getFirestore();
-
-// Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-11-20.acacia',
 });
@@ -33,13 +33,10 @@ export async function POST(req: NextRequest) {
     const signature = headers().get('stripe-signature');
 
     if (!signature) {
-      console.error('❌ No Stripe signature found in headers');
+      console.error('❌ No Stripe signature');
       return NextResponse.json({ error: 'No signature' }, { status: 400 });
     }
 
-    console.log('✅ Signature found');
-
-    // Verify webhook signature
     let event: Stripe.Event;
     
     try {
@@ -48,38 +45,25 @@ export async function POST(req: NextRequest) {
         signature,
         process.env.STRIPE_WEBHOOK_SECRET!
       );
-      console.log('✅ Webhook signature verified');
+      console.log('✅ Signature verified');
+      console.log('📦 Event type:', event.type);
     } catch (err: any) {
-      console.error('❌ Webhook signature verification failed:', err.message);
-      return NextResponse.json(
-        { error: `Webhook Error: ${err.message}` },
-        { status: 400 }
-      );
+      console.error('❌ Signature verification failed:', err.message);
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
     }
 
-    console.log('📦 Event type:', event.type);
-    console.log('📦 Event ID:', event.id);
-
-    // Handle checkout.session.completed
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session;
 
-      console.log('\n💳 ==========================================');
-      console.log('💳 CHECKOUT SESSION COMPLETED');
-      console.log('💳 ==========================================');
+      console.log('\n💳 CHECKOUT COMPLETED');
       console.log('Session ID:', session.id);
-      console.log('Payment Status:', session.payment_status);
-      console.log('Customer:', session.customer);
-      console.log('Subscription:', session.subscription);
       console.log('Client Reference ID:', session.client_reference_id);
-      console.log('Amount Total:', session.amount_total);
 
       const userId = session.client_reference_id;
 
       if (!userId) {
-        console.error('❌ No client_reference_id in session');
-        console.error('Session metadata:', JSON.stringify(session.metadata));
-        return NextResponse.json({ error: 'No user ID provided' }, { status: 400 });
+        console.error('❌ No client_reference_id found!');
+        return NextResponse.json({ error: 'No user ID' }, { status: 400 });
       }
 
       console.log('👤 User ID:', userId);
@@ -88,37 +72,31 @@ export async function POST(req: NextRequest) {
       const customerId = session.customer as string;
 
       if (!subscriptionId) {
-        console.error('❌ No subscription ID in session');
-        return NextResponse.json({ error: 'No subscription found' }, { status: 400 });
+        console.error('❌ No subscription ID');
+        return NextResponse.json({ error: 'No subscription' }, { status: 400 });
       }
 
-      console.log('🔍 Fetching subscription from Stripe...');
-      
+      console.log('🔍 Fetching subscription...');
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
       const interval = subscription.items.data[0]?.price?.recurring?.interval;
       const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
 
-      console.log('📅 Subscription interval:', interval);
+      console.log('📅 Plan:', interval);
       console.log('📅 Status:', subscription.status);
-      console.log('📅 Current period end:', currentPeriodEnd.toISOString());
 
-      // Check if user exists
-      console.log('🔍 Checking Firestore for user...');
-      
+      // Update Firestore
+      console.log('💾 Updating Firestore...');
       const userRef = db.collection('users').doc(userId);
+      
       const userDoc = await userRef.get();
-
       if (!userDoc.exists) {
-        console.error('❌ User document not found:', userId);
+        console.error('❌ User not found:', userId);
         return NextResponse.json({ error: 'User not found' }, { status: 404 });
       }
 
       console.log('✅ User found:', userDoc.data()?.email);
 
-      // Update user with premium fields
-      console.log('💾 Updating Firestore...');
-
-      const updateData = {
+      await userRef.update({
         isPremium: true,
         stripeCustomerId: customerId,
         stripeSubscriptionId: subscriptionId,
@@ -126,32 +104,21 @@ export async function POST(req: NextRequest) {
         subscriptionPlan: interval === 'year' ? 'yearly' : 'monthly',
         currentPeriodEnd: currentPeriodEnd,
         updatedAt: new Date(),
-      };
-
-      await userRef.update(updateData);
+      });
 
       console.log('\n✅ ==========================================');
-      console.log('✅ SUCCESS! USER UPGRADED TO PREMIUM');
-      console.log('✅ ==========================================');
-      console.log('User ID:', userId);
-      console.log('Email:', userDoc.data()?.email);
-      console.log('Plan:', interval === 'year' ? 'yearly' : 'monthly');
-      console.log('Expires:', currentPeriodEnd.toISOString());
+      console.log('✅ USER UPGRADED TO PREMIUM!');
+      console.log('✅ User:', userId);
+      console.log('✅ Email:', userDoc.data()?.email);
+      console.log('✅ Plan:', interval);
       console.log('✅ ==========================================\n');
 
-      return NextResponse.json({ 
-        received: true, 
-        success: true,
-        userId,
-        plan: updateData.subscriptionPlan
-      });
+      return NextResponse.json({ success: true, userId });
     }
 
-    // Handle subscription updated
+    // Handle other events...
     if (event.type === 'customer.subscription.updated') {
       const subscription = event.data.object as Stripe.Subscription;
-      console.log('🔄 Subscription updated:', subscription.id);
-
       const usersSnapshot = await db
         .collection('users')
         .where('stripeSubscriptionId', '==', subscription.id)
@@ -160,24 +127,18 @@ export async function POST(req: NextRequest) {
 
       if (!usersSnapshot.empty) {
         const userDoc = usersSnapshot.docs[0];
-        const isPremium = ['active', 'trialing'].includes(subscription.status);
-
         await userDoc.ref.update({
-          isPremium,
+          isPremium: ['active', 'trialing'].includes(subscription.status),
           subscriptionStatus: subscription.status,
           currentPeriodEnd: new Date(subscription.current_period_end * 1000),
           updatedAt: new Date(),
         });
-
-        console.log(`✅ Updated user ${userDoc.id}: ${subscription.status}`);
+        console.log('✅ Updated subscription');
       }
     }
 
-    // Handle subscription deleted
     if (event.type === 'customer.subscription.deleted') {
       const subscription = event.data.object as Stripe.Subscription;
-      console.log('❌ Subscription canceled:', subscription.id);
-
       const usersSnapshot = await db
         .collection('users')
         .where('stripeSubscriptionId', '==', subscription.id)
@@ -185,31 +146,19 @@ export async function POST(req: NextRequest) {
         .get();
 
       if (!usersSnapshot.empty) {
-        const userDoc = usersSnapshot.docs[0];
-
-        await userDoc.ref.update({
+        await usersSnapshot.docs[0].ref.update({
           isPremium: false,
           subscriptionStatus: 'canceled',
           updatedAt: new Date(),
         });
-
-        console.log(`❌ User ${userDoc.id} downgraded to free`);
+        console.log('✅ Subscription canceled');
       }
     }
 
     return NextResponse.json({ received: true });
 
   } catch (error: any) {
-    console.error('\n❌ ==========================================');
-    console.error('❌ WEBHOOK ERROR');
-    console.error('❌ ==========================================');
-    console.error('Message:', error.message);
-    console.error('Stack:', error.stack);
-    console.error('❌ ==========================================\n');
-
-    return NextResponse.json(
-      { error: 'Webhook handler failed', details: error.message },
-      { status: 500 }
-    );
+    console.error('\n❌ WEBHOOK ERROR:', error.message);
+    return NextResponse.json({ error: 'Webhook failed' }, { status: 500 });
   }
 }
