@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import type { Course, Step, QuizSet } from '../../lib/types';
 import { getCoursesForUser, updateCourse, deleteCourse as deleteCourseFromDb, getFriends } from '../../lib/firestore';
 import { askQuestionAction, assistWithNotesAction, generateQuizAction } from '../actions';
@@ -18,6 +18,8 @@ import LearnLayout from '../../components/learn-layout';
 import type { Message } from '../../components/step-workspace';
 import type { GenerateStepQuizOutput } from '../../ai/flows/generate-step-quiz';
 import { ShareDialog } from '../../components/share-dialog';
+import { PremiumDashboard } from '../../components/premium-dashboard';
+import { usePremiumStatus } from '../../hooks/use-premium-status';
 
 export default function LearnPage() {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -30,6 +32,8 @@ export default function LearnPage() {
   const { toast } = useToast();
   const { user, loading, logout } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { isPremium } = usePremiumStatus();
 
   useEffect(() => {
     setIsClient(true);
@@ -41,6 +45,19 @@ export default function LearnPage() {
       }
     }
   }, [user, loading, router]);
+
+  // 🔥 Handle successful Stripe payment redirect
+  useEffect(() => {
+    const success = searchParams.get('success');
+    if (success === 'true') {
+      toast({
+        title: '🎉 Welcome to Premium!',
+        description: 'Your subscription is now active. Enjoy enhanced features!',
+      });
+      // Clean up URL
+      router.replace('/learn');
+    }
+  }, [searchParams, toast, router]);
 
   const fetchCourses = useCallback(async () => {
     if (user && user.emailVerified) {
@@ -228,7 +245,13 @@ export default function LearnPage() {
       onDeleteCourse={handleDeleteCourse}
     />
   ) : (
-    <div className="h-full flex items-center justify-center p-4 md:p-8">
+    <div className="h-full flex flex-col items-center justify-center p-4 md:p-8">
+      {/* Premium Dashboard - shown above topic selection for premium users */}
+      {isPremium && (
+        <div className="w-full max-w-4xl mb-6">
+          <PremiumDashboard />
+        </div>
+      )}
       <TopicSelection
         soloCoursesCount={courses.filter(c => c.courseMode === 'Solo').length}
         collaborativeCoursesCount={courses.filter(c => c.courseMode === 'Collaborative').length}

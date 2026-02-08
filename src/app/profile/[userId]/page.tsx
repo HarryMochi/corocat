@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { supabase } from '@/lib/supabase';
 import { getCoursesForUser, updateUserProfile } from '@/lib/firestore';
 import { sendFriendRequest } from '@/app/sendFriendRequestClient';
-import { Loader2, ArrowLeft, Github, Twitter, Linkedin, BookOpen, Edit, Youtube, Globe, UserPlus, Check, Upload } from 'lucide-react';
+import { Loader2, ArrowLeft, Github, Twitter, Linkedin, BookOpen, Edit, Youtube, Globe, UserPlus, Check, Upload, Crown } from 'lucide-react';
 import LearnLayout from '@/components/learn-layout';
 import HistorySidebar from '@/components/history-sidebar';
 import type { Course, User } from '@/lib/types';
@@ -42,6 +42,8 @@ interface UserProfile {
   creationTime: string;
   photoURL?: string;
   aboutMe?: string;
+  isPremium?: boolean;
+  plan?: 'free' | 'premium';
   socials?: {
     twitter?: string;
     github?: string;
@@ -461,7 +463,7 @@ export default function ProfilePage() {
           <Dialog open={isPfpOpen} onOpenChange={setIsPfpOpen}>
             <DialogTrigger asChild disabled={!isOwner}>
               <div className="relative group">
-                <Avatar className={`h-32 w-32 border-4 border-primary/20 ${isOwner ? 'cursor-pointer' : ''}`}>
+                <Avatar className={`h-32 w-32 border-4 ${profile.isPremium || profile.plan === 'premium' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-primary/20'} ${isOwner ? 'cursor-pointer' : ''}`}>
                   <AvatarImage src={profile.photoURL} alt={profile.displayName} className="object-cover" />
                   <AvatarFallback style={{ backgroundColor: '#f5f5dc' }} className="text-5xl text-black">{getInitials(profile.displayName)}</AvatarFallback>
                 </Avatar>
@@ -496,7 +498,13 @@ export default function ProfilePage() {
         <div className="text-center md:text-left flex-grow">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <h1 className="text-4xl font-bold font-headline text-primary">{profile.displayName}</h1>
+              <h1 className={`text-4xl font-bold font-headline ${profile.isPremium || profile.plan === 'premium' ? 'bg-gradient-to-r from-yellow-400 via-orange-500 to-yellow-400 bg-clip-text text-transparent' : 'text-primary'}`}>{profile.displayName}</h1>
+              {(profile.isPremium || profile.plan === 'premium') && (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs font-bold rounded-full shadow-lg">
+                  <Crown className="w-3 h-3" />
+                  PREMIUM
+                </div>
+              )}
               {isOwner && (
                 <Dialog open={isNameEditing} onOpenChange={setIsNameEditing}>
                   <DialogTrigger asChild>

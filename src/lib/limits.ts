@@ -16,6 +16,10 @@ export const PLAN_LIMITS = {
 export type PlanType = keyof typeof PLAN_LIMITS;
 
 export function getUserPlan(user: User): PlanType {
+    // Check both plan field and isPremium for backwards compatibility
+    if (user.plan === 'premium' || (user as any).isPremium === true) {
+        return 'premium';
+    }
     return user.plan || IMPLICIT_PLAN;
 }
 

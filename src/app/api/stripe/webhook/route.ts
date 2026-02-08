@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     }
 
     let event: Stripe.Event;
-    
+
     try {
       event = stripe.webhooks.constructEvent(
         body,
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
       // Update Firestore
       console.log('💾 Updating Firestore...');
       const userRef = db.collection('users').doc(userId);
-      
+
       const userDoc = await userRef.get();
       if (!userDoc.exists) {
         console.error('❌ User not found:', userId);
@@ -98,6 +98,7 @@ export async function POST(req: NextRequest) {
 
       await userRef.update({
         isPremium: true,
+        plan: 'premium', // 🔥 CRITICAL: Required for limits.ts to apply premium limits
         stripeCustomerId: customerId,
         stripeSubscriptionId: subscriptionId,
         subscriptionStatus: subscription.status,

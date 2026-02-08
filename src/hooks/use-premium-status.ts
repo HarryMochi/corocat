@@ -66,5 +66,15 @@ export function usePremiumStatus(): PremiumStatusReturn {
     return () => unsubscribe();
   }, [user]);
 
-  return { isPremium, subscription, loading };
+  return { 
+    isPremium, 
+    subscription, 
+    subscriptionDetails: subscription ? {
+      plan: subscription.subscriptionPlan,
+      status: subscription.subscriptionStatus,
+      currentPeriodEnd: subscription.currentPeriodEnd,
+      cancelAtPeriodEnd: false // TODO: Add this field if tracking cancellation
+    } : null,
+    loading 
+  };
 }
