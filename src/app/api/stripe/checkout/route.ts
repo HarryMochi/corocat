@@ -27,10 +27,10 @@ export async function POST(req: Request) {
         }
 
         const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-
         const isResubscribe = !!resubscribe;
+
         const session = await stripe.checkout.sessions.create({
-            payment_method_types: ['card'],
+            // <-- Remove payment_method_types entirely for automatic methods
             line_items: [
                 {
                     price: priceId,
