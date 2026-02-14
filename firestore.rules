@@ -1,0 +1,61 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================
+    // USERS
+    // ============================
+    match /users/{userId} {
+      allow create,read,update,delete: if request.auth != null;
+    }
+
+    // FRIENDS SUBCOLLECTION
+    match /users/{userId}/friends/{friendId} {
+      allow create,read,update,delete: if request.auth != null;
+    }
+
+    // NOTIFICATIONS
+   match /users/{userId}/notifications/{notifId} {
+  allow create: if request.auth != null;
+
+  allow read: if request.auth != null
+              && request.auth.uid == userId;
+
+  // Allow user to delete ONLY their notifications
+  allow delete, update: if request.auth != null
+                        && request.auth.uid == userId;
+}
+
+
+    // ============================
+    // FRIEND REQUESTS (TOP-LEVEL)
+    // ============================
+    match /friendRequests/{requestId} {
+
+      allow create,read,update,delete: if request.auth != null;
+    }
+
+    // ============================
+    // COURSES
+    // ============================
+    match /courses/{courseId} {
+      allow create,read,update,delete: if request.auth != null;
+                                  
+    }
+
+    // ============================
+    // MARKETPLACE COURSES
+    // ============================
+    match /marketplaceCourses/{courseId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow delete: if request.auth != null
+                    && resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null
+                    && request.resource.data.diff(resource.data)
+                        .affectedKeys()
+                        .hasOnly(["likes", "likedBy"]);
+    }
+  }
+}
