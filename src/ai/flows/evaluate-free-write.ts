@@ -8,7 +8,7 @@
  * - EvaluateFreeWriteOutput - The return type for the function.
  */
 
-import { ai, llama3Model } from '@/ai/genkit';
+import { ai, llama3Model } from '../genkit';
 import { z } from 'genkit';
 
 const EvaluateFreeWriteInputSchema = z.object({

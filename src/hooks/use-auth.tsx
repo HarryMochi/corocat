@@ -37,15 +37,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (userSnap.exists()) {
             firestoreData = userSnap.data();
           } else {
-            // Create user document with premium fields
+            // Create user document with premium fields and visual defaults
             firestoreData = {
-              displayName: currentUser.displayName || currentUser.email?.split('@')[0] || 'User',
+              displayName:
+                currentUser.displayName ||
+                currentUser.email?.split('@')[0] ||
+                'User',
               email: currentUser.email,
               photoURL: currentUser.photoURL,
               uid: currentUser.uid,
               lastLogin: new Date().toISOString(),
-              limits: { coursesCreatedTimestamps: [], whiteboardsCreatedTotal: 0 },
-              
+              limits: {
+                coursesCreatedTimestamps: [],
+                whiteboardsCreatedTotal: 0,
+              },
+
               // Premium subscription fields
               isPremium: false,
               stripeCustomerId: null,
@@ -53,6 +59,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               subscriptionStatus: null,
               subscriptionPlan: null,
               currentPeriodEnd: null,
+
+              // Premium visual customization defaults
+              usernameStyleKey: 'none',
+              avatarEffectKey: 'none',
             };
             await setDoc(userRef, firestoreData, { merge: true });
           }
@@ -78,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     
-    const isAuthPage = ['/login', '/signup', '/', '/verify-email'].includes(pathname);
+    const isAuthPage = ['/login', '/signup', '/verify-email'].includes(pathname);
     if (!loading && user && user.emailVerified && isAuthPage) {
       console.log('✅ Auto-redirecting to /learn');
       router.push('/learn');
@@ -93,20 +103,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await updateProfile(userCredential.user, { displayName });
         
         const userRef = doc(db, 'users', userCredential.user.uid);
-        await setDoc(userRef, {
-          displayName: displayName,
-          email: userCredential.user.email,
-          uid: userCredential.user.uid,
-          creationTime: new Date().toISOString(),
-          
-          // Initialize premium fields
-          isPremium: false,
-          stripeCustomerId: null,
-          stripeSubscriptionId: null,
-          subscriptionStatus: null,
-          subscriptionPlan: null,
-          currentPeriodEnd: null,
-        }, { merge: true });
+        await setDoc(
+          userRef,
+          {
+            displayName: displayName,
+            email: userCredential.user.email,
+            uid: userCredential.user.uid,
+            creationTime: new Date().toISOString(),
+
+            // Initialize premium fields
+            isPremium: false,
+            stripeCustomerId: null,
+            stripeSubscriptionId: null,
+            subscriptionStatus: null,
+            subscriptionPlan: null,
+            currentPeriodEnd: null,
+
+            // Initialize premium visual customization
+            usernameStyleKey: 'none',
+            avatarEffectKey: 'none',
+          },
+          { merge: true }
+        );
         
         await sendEmailVerification(userCredential.user);
       }
@@ -137,22 +155,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userSnap = await getDoc(userRef);
         
         if (!userSnap.exists()) {
-          await setDoc(userRef, {
-            displayName: result.user.displayName || result.user.email?.split('@')[0] || 'User',
-            email: result.user.email,
-            photoURL: result.user.photoURL,
-            uid: result.user.uid,
-            creationTime: new Date().toISOString(),
-            lastLogin: new Date().toISOString(),
-            limits: { coursesCreatedTimestamps: [], whiteboardsCreatedTotal: 0 },
-            
-            isPremium: false,
-            stripeCustomerId: null,
-            stripeSubscriptionId: null,
-            subscriptionStatus: null,
-            subscriptionPlan: null,
-            currentPeriodEnd: null,
-          }, { merge: true });
+          await setDoc(
+            userRef,
+            {
+              displayName:
+                result.user.displayName ||
+                result.user.email?.split('@')[0] ||
+                'User',
+              email: result.user.email,
+              photoURL: result.user.photoURL,
+              uid: result.user.uid,
+              creationTime: new Date().toISOString(),
+              lastLogin: new Date().toISOString(),
+              limits: {
+                coursesCreatedTimestamps: [],
+                whiteboardsCreatedTotal: 0,
+              },
+
+              isPremium: false,
+              stripeCustomerId: null,
+              stripeSubscriptionId: null,
+              subscriptionStatus: null,
+              subscriptionPlan: null,
+              currentPeriodEnd: null,
+
+              // Initialize premium visual customization
+              usernameStyleKey: 'none',
+              avatarEffectKey: 'none',
+            },
+            { merge: true }
+          );
         }
       }
       

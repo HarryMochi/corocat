@@ -28,7 +28,8 @@ export async function validateTopicAction({ topic, userId }: { topic: string; us
         const check = checkCourseLimit(userObj);
 
         if (!check.allowed) {
-          throw new Error(`Plan limit reached! You can create ${check.limit} courses per hour. Upgrade to Premium.`);
+          const windowMsg = check.windowLabel === 'week' ? 'per week' : 'per hour';
+          throw new Error(`Plan limit reached! You can create ${check.limit} courses ${windowMsg}. Upgrade to Premium.`);
         }
       }
     } catch (error: any) {
@@ -40,7 +41,10 @@ export async function validateTopicAction({ topic, userId }: { topic: string; us
     }
   }
 
-  const { output } = await validateTopicPrompt({ topic }, { model });
+  const { output } = await validateTopicPrompt(
+    { topic },
+    { model, config: { maxOutputTokens: 1024 } },
+  );
 
   if (!output) {
     throw new Error('The AI failed to validate the topic.');
@@ -54,7 +58,10 @@ export async function validateTopicAction({ topic, userId }: { topic: string; us
 
 // Action to generate the course title
 export async function generateCourseTitleAction({ topic }: { topic: string }) {
-  const { output } = await generateCourseTitlePrompt({ topic }, { model });
+  const { output } = await generateCourseTitlePrompt(
+    { topic },
+    { model, config: { maxOutputTokens: 1024 } },
+  );
   return output;
 }
 
@@ -65,7 +72,10 @@ export async function generateCourseOutlineAction(input: {
   knowledgeLevel: string;
   additionalComments?: string;
 }) {
-  const { output } = await generateCourseOutlinePrompt(input, { model });
+  const { output } = await generateCourseOutlinePrompt(input, {
+    model,
+    config: { maxOutputTokens: 4096 },
+  });
   return output;
 }
 
@@ -75,7 +85,10 @@ export async function generateStepContentAction(input: {
   outline: string;
   stepTitle: string;
 }) {
-  const { output } = await generateStepContentPrompt(input, { model });
+  const { output } = await generateStepContentPrompt(input, {
+    model,
+    config: { maxOutputTokens: 4096 },
+  });
   return output;
 }
 

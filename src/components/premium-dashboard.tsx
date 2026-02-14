@@ -1,11 +1,21 @@
 'use client';
 
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Crown, Zap, TrendingUp, Award, Calendar, Star } from 'lucide-react';
+import { Button } from './ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
+import { Crown, Zap, Award, Calendar, Star } from 'lucide-react';
 import { usePremiumStatus } from '../hooks/use-premium-status';
 
 export function PremiumDashboard() {
   const { isPremium, subscriptionDetails, loading } = usePremiumStatus();
+  const [resubscribeDialogOpen, setResubscribeDialogOpen] = useState(false);
 
   if (loading) {
     return (
@@ -33,6 +43,8 @@ export function PremiumDashboard() {
     : 'N/A';
 
   const planName = subscriptionDetails?.plan === 'yearly' ? 'Yearly' : 'Monthly';
+  const cancelAtPeriodEnd = subscriptionDetails?.cancelAtPeriodEnd ?? false;
+
   const daysUntilExpiry = subscriptionDetails?.currentPeriodEnd
     ? Math.ceil((new Date(subscriptionDetails.currentPeriodEnd).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
     : 0;
@@ -70,12 +82,12 @@ export function PremiumDashboard() {
           </CardContent>
         </Card>
 
-        {/* Renewal Date */}
+        {/* Renewal / Access Date */}
         <Card className="border-accent/20 bg-gradient-to-br from-background to-accent/5">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Calendar className="w-4 h-4 text-accent" />
-              Next Renewal
+              {cancelAtPeriodEnd ? 'Access until' : 'Next Renewal'}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -133,12 +145,28 @@ export function PremiumDashboard() {
         </div>
       </div>
 
-      {/* Renewal Notice */}
-      {subscriptionDetails?.cancelAtPeriodEnd && (
-        <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+      {/* Renewal Notice & Resubscribe */}
+      {cancelAtPeriodEnd && (
+        <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg space-y-3">
           <p className="text-sm text-yellow-700 dark:text-yellow-400">
-            ⚠️ Your subscription will end on {expiryDate}. Renew to continue enjoying premium benefits.
+            ⚠️ Auto-renewal is off. Your subscription will end on {expiryDate}. You will not be charged.
           </p>
+          <Button
+            size="sm"
+            onClick={() => setResubscribeDialogOpen(true)}
+          >
+            Resubscribe
+          </Button>
+          <Dialog open={resubscribeDialogOpen} onOpenChange={setResubscribeDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Resubscribe</DialogTitle>
+                <DialogDescription>
+                  You can resubscribe at the end of your membership.
+                </DialogDescription>
+              </DialogHeader>
+            </DialogContent>
+          </Dialog>
         </div>
       )}
     </div>

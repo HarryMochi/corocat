@@ -7,7 +7,7 @@
  * - AssistWithNotesOutput - The return type for the assistWithNotes function.
  */
 
-import { ai, llama3Model } from '@/ai/genkit';
+import { ai, llama3Model } from '../genkit';
 import { z } from 'genkit';
 
 const AssistWithNotesInputSchema = z.object({

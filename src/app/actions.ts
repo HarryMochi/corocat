@@ -19,11 +19,7 @@ import {
     deleteNotification as deleteNotificationFb,
 } from '@/lib/firebase';
 import { acceptSharedCourse as acceptSharedCourseFirestore } from '@/lib/firestore';
-import {
-    addDoc, collection, query, where, getDocs, serverTimestamp
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { getUserByEmail } from '@/lib/firebase'
+
 
 
 const execAsync = promisify(exec);

@@ -4,12 +4,14 @@ export const IMPLICIT_PLAN = 'free';
 
 export const PLAN_LIMITS = {
     free: {
-        coursesPerHour: 3,
+        coursesPerWeek: 5,
         whiteboardsTotal: 3,
+        coursesPerHour: 5, // unused for free; kept for compatibility
     },
     premium: {
         coursesPerHour: 10,
         whiteboardsTotal: 20,
+        coursesPerWeek: 10, // unused for premium
     },
 };
 
@@ -27,36 +29,37 @@ export function getPlanLimits(plan: PlanType) {
     return PLAN_LIMITS[plan];
 }
 
-export function checkCourseLimit(user: User): { allowed: boolean; remaining: number; limit: number; nextReset?: Date } {
+export function checkCourseLimit(user: User): { allowed: boolean; remaining: number; limit: number; nextReset?: Date; windowLabel?: string } {
     const plan = getUserPlan(user);
     const limits = getPlanLimits(plan);
-
     const now = Date.now();
-    const oneHourAgo = now - 60 * 60 * 1000;
+    const timestamps = user.limits?.coursesCreatedTimestamps || [];
 
-    // Filter timestamps to only those within the last hour
-    const recentCreations = (user.limits?.coursesCreatedTimestamps || [])
-        .filter(ts => new Date(ts).getTime() > oneHourAgo);
-
-    // We can also sort them to find when the oldest one "expires"
-    const sortedCreations = recentCreations.map(ts => new Date(ts).getTime()).sort((a, b) => a - b);
-
-    const used = sortedCreations.length;
-    const remaining = Math.max(0, limits.coursesPerHour - used);
-
-    let nextReset: Date | undefined = undefined;
-    if (used >= limits.coursesPerHour && sortedCreations.length > 0) {
-        // The user can create again when the *oldest* of the counted creations falls out of the 1-hour window.
-        // i.e. oldest + 1 hour.
-        nextReset = new Date(sortedCreations[0] + 60 * 60 * 1000);
+    if (plan === 'free') {
+        const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000;
+        const recentCreations = timestamps.filter(ts => new Date(ts).getTime() > oneWeekAgo);
+        const sortedCreations = recentCreations.map(ts => new Date(ts).getTime()).sort((a, b) => a - b);
+        const used = sortedCreations.length;
+        const limit = limits.coursesPerWeek;
+        const remaining = Math.max(0, limit - used);
+        let nextReset: Date | undefined;
+        if (used >= limit && sortedCreations.length > 0) {
+            nextReset = new Date(sortedCreations[0] + 7 * 24 * 60 * 60 * 1000);
+        }
+        return { allowed: used < limit, remaining, limit, nextReset, windowLabel: 'week' };
     }
 
-    return {
-        allowed: used < limits.coursesPerHour,
-        remaining,
-        limit: limits.coursesPerHour,
-        nextReset
-    };
+    const oneHourAgo = now - 60 * 60 * 1000;
+    const recentCreations = timestamps.filter(ts => new Date(ts).getTime() > oneHourAgo);
+    const sortedCreations = recentCreations.map(ts => new Date(ts).getTime()).sort((a, b) => a - b);
+    const used = sortedCreations.length;
+    const limit = limits.coursesPerHour;
+    const remaining = Math.max(0, limit - used);
+    let nextReset: Date | undefined;
+    if (used >= limit && sortedCreations.length > 0) {
+        nextReset = new Date(sortedCreations[0] + 60 * 60 * 1000);
+    }
+    return { allowed: used < limit, remaining, limit, nextReset, windowLabel: 'hour' };
 }
 
 export function checkWhiteboardLimit(user: User, currentWhiteboardCount: number): { allowed: boolean; remaining: number; limit: number } {

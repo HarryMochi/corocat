@@ -23,6 +23,8 @@ import { getFriendRequests } from '@/app/getFriendRequestClient';
 import { acceptFriendRequest, rejectFriendRequest } from '@/lib/firestore';
 import { getFriends } from '@/app/getFriendClient';
 import { getUserById } from '@/app/getUserByIdClient';
+import { PremiumAvatar, PremiumUsername } from '@/components/user-style';
+import { useOtherUserPremiumStatus } from '@/hooks/use-other-premium-status';
 // Friend Request Interface
 interface FriendRequest {
   id: string;
@@ -75,12 +77,6 @@ export function SocialsModal({ children }: { children?: React.ReactNode }) {
   // Remove Friend Confirmation State
   const [isConfirmingRemove, setIsConfirmingRemove] = useState(false);
   const [friendToRemove, setFriendToRemove] = useState<string | null>(null);
-
-  const getInitials = (name: string | null | undefined) => {
-    if (!name) return 'U';
-    const names = name.split(' ');
-    return names.length > 1 ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase() : name[0].toUpperCase();
-  };
 
   async function fetchSocialsData() {
     if (!user) return;
@@ -264,13 +260,11 @@ export function SocialsModal({ children }: { children?: React.ReactNode }) {
                       {requests.map((request, key) => (
                         <div key={request?.id} className="flex items-center justify-between">
 
-                          <div className="flex items-center space-x-4">
-                            <Avatar>
-                              <AvatarImage src={requestsDetails[key]?.photoURL} alt={'User Avatar'} />
-                              {!requestsDetails[key]?.photoURL && <AvatarFallback>{getInitials(requestsDetails[key]?.displayName)}</AvatarFallback>}
-                            </Avatar>
-                            <span>{requestsDetails[key]?.displayName || "Unnamed User"}</span>
-                          </div>
+                          <SocialUserChip
+                            uid={requestsDetails[key]?.uid}
+                            displayName={requestsDetails[key]?.displayName}
+                            photoURL={requestsDetails[key]?.photoURL}
+                          />
                           <div className="space-x-2">
                             <Button onClick={() => handleAccept(request?.id)} size="sm" variant={"secondary"} disabled={isAcceptingRequest}>{isAcceptingRequest ? <Loader2 className='w-4 h-4 animate-spin text-black' /> : "Accept"}</Button>
                             <Button onClick={() => handleReject(request?.id)} size="sm" variant="destructive" disabled={rejectingRequest}>{rejectingRequest ? <Loader2 className='w-4 h-4 animate-spin text-white' /> : "Reject"}</Button>
@@ -301,13 +295,11 @@ export function SocialsModal({ children }: { children?: React.ReactNode }) {
 
                       <div key={friend?.id} className="flex items-center justify-between">
 
-                        <div className="flex items-center space-x-4">
-                          <Avatar>
-                            <AvatarImage src={friend?.photoURL || undefined} />
-                            {!friend?.photoURL && <AvatarFallback>{getInitials(friend?.displayName)}</AvatarFallback>}
-                          </Avatar>
-                          <span>{friend?.displayName || 'Unnamed User'}</span>
-                        </div>
+                        <SocialUserChip
+                          uid={friend?.id}
+                          displayName={friend?.displayName}
+                          photoURL={friend?.photoURL}
+                        />
                         <Button onClick={() => confirmRemoveFriend(friend?.id)} size="icon" variant="ghost" disabled={isRemovingFriend}>
                           {isRemovingFriend ? <Loader2 className='w-4 h-4 text-black animate-spin' /> : <X className="h-4 w-4" />}
                         </Button>
@@ -328,5 +320,46 @@ export function SocialsModal({ children }: { children?: React.ReactNode }) {
         description="This will permanently remove this user from your friends list."
       />
     </>
+  );
+}
+
+interface SocialUserChipProps {
+  uid?: string;
+  displayName?: string | null;
+  photoURL?: string | null;
+}
+
+function SocialUserChip({ uid, displayName, photoURL }: SocialUserChipProps) {
+  const safeName = displayName || 'User';
+  const { isPremium, usernameStyleKey, avatarEffectKey } =
+    useOtherUserPremiumStatus(uid || null);
+
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return 'U';
+    const names = name.split(' ');
+    return names.length > 1
+      ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase()
+      : name[0].toUpperCase();
+  };
+
+  return (
+    <div className="flex items-center space-x-4">
+      <PremiumAvatar
+        src={photoURL || undefined}
+        alt={safeName}
+        initials={getInitials(safeName)}
+        effectKey={avatarEffectKey || undefined}
+        isPremium={isPremium}
+        size="sm"
+      />
+      <span className="text-sm font-medium">
+        <PremiumUsername
+          name={safeName}
+          styleKey={usernameStyleKey || undefined}
+          isPremium={isPremium}
+          className="text-sm"
+        />
+      </span>
+    </div>
   );
 }

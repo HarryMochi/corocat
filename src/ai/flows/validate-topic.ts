@@ -1,4 +1,4 @@
-import { ai } from '@/ai/genkit';
+import { ai } from '../genkit';
 import { z } from 'genkit';
 
 export const ValidateTopicInputSchema = z.object({

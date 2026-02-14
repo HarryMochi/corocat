@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuth } from './use-auth';
 import { getFirestore, doc, onSnapshot } from 'firebase/firestore';
 import { UserSubscription } from '../types/subscription';
 
@@ -17,12 +16,12 @@ interface PremiumStatusReturn {
   loading: boolean;
 }
 
-export function usePremiumStatus(): PremiumStatusReturn {
-  const { user } = useAuth();
+export function useOtherUserPremiumStatus(
+  uid: string | null | undefined
+): PremiumStatusReturn {
   const [isPremium, setIsPremium] = useState(false);
-  const [subscription, setSubscription] = useState<UserSubscription | null>(
-    null
-  );
+  const [subscription, setSubscription] =
+    useState<UserSubscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [usernameStyleKey, setUsernameStyleKey] = useState<string | null>(
     null
@@ -30,9 +29,7 @@ export function usePremiumStatus(): PremiumStatusReturn {
   const [avatarEffectKey, setAvatarEffectKey] = useState<string | null>(null);
 
   useEffect(() => {
-    setLoading(true);
-
-    if (!user) {
+    if (!uid) {
       setIsPremium(false);
       setSubscription(null);
       setLoading(false);
@@ -41,8 +38,10 @@ export function usePremiumStatus(): PremiumStatusReturn {
       return;
     }
 
+    setLoading(true);
+
     const db = getFirestore();
-    const userRef = doc(db, 'users', user.uid);
+    const userRef = doc(db, 'users', uid);
 
     const unsubscribe = onSnapshot(
       userRef,
@@ -50,28 +49,33 @@ export function usePremiumStatus(): PremiumStatusReturn {
         if (snap.exists()) {
           const data = snap.data() as any;
 
+          // Base currentPeriodEnd on Firestore, if present
+          let currentPeriodEnd: Date | null =
+            data.currentPeriodEnd?.toDate &&
+            typeof data.currentPeriodEnd.toDate === 'function'
+              ? data.currentPeriodEnd.toDate()
+              : null;
 
-          let currentPeriodEnd: Date | null = data.currentPeriodEnd?.toDate
-            ? data.currentPeriodEnd.toDate()
-            : null;
-
-
+          // Approximate expiry if Stripe is active but no date exists
           if (
             !currentPeriodEnd &&
             (data.subscriptionStatus === 'active' ||
               data.subscriptionStatus === 'trialing')
           ) {
             const base =
-              data.updatedAt?.toDate && typeof data.updatedAt.toDate === 'function'
+              data.updatedAt?.toDate &&
+              typeof data.updatedAt.toDate === 'function'
                 ? data.updatedAt.toDate()
                 : new Date();
+
             const approx = new Date(base.getTime());
+
             if (data.subscriptionPlan === 'yearly') {
               approx.setFullYear(approx.getFullYear() + 1);
             } else {
-              // default to monthly
               approx.setMonth(approx.getMonth() + 1);
             }
+
             currentPeriodEnd = approx;
           }
 
@@ -109,13 +113,13 @@ export function usePremiumStatus(): PremiumStatusReturn {
         setLoading(false);
       },
       (error) => {
-        console.error('Error listening to subscription:', error);
+        console.error('Error listening to other user subscription:', error);
         setLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [user]);
+  }, [uid]);
 
   return {
     isPremium,
@@ -129,9 +133,9 @@ export function usePremiumStatus(): PremiumStatusReturn {
         }
       : null,
     loading,
-    // Visual customization keys for the signed-in user
+    // Visual customization keys (always default to 'none' when absent)
+    // Useful for showing gradients/effects to other viewers.
     usernameStyleKey,
     avatarEffectKey,
   };
 }
-

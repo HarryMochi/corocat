@@ -1,26 +1,17 @@
 import { NextResponse } from 'next/server';
-import { stripe } from '@/lib/stripe';
-import { adminDb } from '@/lib/admin';
-import { headers } from 'next/headers';
-import type { User } from '@/lib/types';
-import { doc, getDoc } from 'firebase/firestore'; // Note: Client SDK might not work in Route Handler easily if auth not shared?
-// We should use adminDb or verify auth header. 
-// For simplicity, we assume the user is authenticated via session or token passed, but typically we need the userId.
-// Since we don't have session cookie handling implemented for server-side auth easily, we might need the client to pass the UID or rely on Firebase Auth ID token.
-// Ideally, use a library like `next-firebase-auth-edge` or standard Firebase Admin verifyIdToken.
-
-// For now, I will implement a placeholder that accepts userId in the body (INSECURE for production, but allows progress). 
-// The user prompt implies they will send API keys later.
+import { stripe } from '../../../../lib/stripe';
+import { getFirestoreAdmin } from '../../../../lib/firebase-admin';
 
 export async function POST(req: Request) {
     try {
-        const { userId, plan } = await req.json();
+        const { userId, plan, resubscribe } = await req.json();
 
         if (!userId) {
             return new NextResponse('Unauthorized', { status: 401 });
         }
 
-        const userRef = adminDb.collection('users').doc(userId);
+        const db = getFirestoreAdmin();
+        const userRef = db.collection('users').doc(userId);
         const userDoc = await userRef.get();
 
         if (!userDoc.exists) {
@@ -29,21 +20,31 @@ export async function POST(req: Request) {
 
         const userData = userDoc.data();
 
-        // Create Stripe checkout session
+        const priceId = process.env.STRIPE_PREMIUM_PRICE_ID;
+        if (!priceId) {
+            console.error('[STRIPE_CHECKOUT] STRIPE_PREMIUM_PRICE_ID is not set');
+            return new NextResponse('Server misconfiguration: missing price ID', { status: 500 });
+        }
+
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+
+        const isResubscribe = !!resubscribe;
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             line_items: [
                 {
-                    price: process.env.STRIPE_PREMIUM_PRICE_ID, // Ensure this ENV is set
+                    price: priceId,
                     quantity: 1,
                 },
             ],
             mode: 'subscription',
-            success_url: `${process.env.NEXT_PUBLIC_APP_URL}/learn?success=true`,
-            cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing?canceled=true`,
-            customer_email: userData?.email,
+            success_url: `${appUrl}/learn?success=true&session_id={CHECKOUT_SESSION_ID}&resubscribe=${isResubscribe ? '1' : '0'}`,
+            cancel_url: `${appUrl}/?canceled=true`,
+            customer_email: userData?.email ?? undefined,
+            client_reference_id: userId,
             metadata: {
-                userId: userId,
+                userId,
+                resubscribe: isResubscribe ? 'true' : 'false',
             },
         });
 

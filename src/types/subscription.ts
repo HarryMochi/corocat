@@ -5,4 +5,5 @@ export interface UserSubscription {
   subscriptionStatus: 'active' | 'canceled' | 'past_due' | 'trialing' | null;
   subscriptionPlan: 'monthly' | 'yearly' | null;
   currentPeriodEnd: Date | null;
+  cancelAtPeriodEnd?: boolean;
 }

@@ -1,9 +1,9 @@
 
 'use server';
 
-import { ai, llama3Model } from '@/ai/genkit';
+import { ai, llama3Model } from '../genkit';
 import { z } from 'genkit';
-import { marketplaceCategories } from '@/lib/marketplace-categories';
+import { marketplaceCategories } from '../../lib/marketplace-categories';
 
 const availableCategories = marketplaceCategories.map(c => c.id).join(', ');
 

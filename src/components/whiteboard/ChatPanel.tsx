@@ -2,11 +2,11 @@
 
 import { MessageSquare, Mic, MicOff, X, Lock } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "../../hooks/use-auth";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { ScrollArea } from "../ui/scroll-area";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "../../hooks/use-toast";
 import { useMutation, useOthers, useSelf } from "@liveblocks/react/suspense";
 import { LiveList, LiveObject } from "@liveblocks/client";
 

@@ -2,9 +2,9 @@
 
 import { Phone, PhoneOff, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "../../hooks/use-auth";
 import { Button } from "../ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "../../hooks/use-toast";
 import { useOthers, useSelf, useMutation, useBroadcastEvent, useEventListener } from "@liveblocks/react/suspense";
 
 interface VoiceState {

@@ -8,11 +8,12 @@ import { useNotifications } from '@/hooks/use-notifications';
 import type { Notification } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from './ui/button';
-import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { Loader } from './loader';
 import { clearAllNotifications } from '@/lib/clearNotification';
 import { deleteNotification } from '@/lib/deleteNotification';
+import { PremiumAvatar, PremiumUsername } from '@/components/user-style';
+import { useOtherUserPremiumStatus } from '@/hooks/use-other-premium-status';
 interface NotificationBellProps {
     onCourseAccepted: (newCourseId: string) => Promise<void>;
 }
@@ -130,42 +131,9 @@ export function NotificationBell({ onCourseAccepted }: NotificationBellProps) {
                                 key={n.id}
                                 className="p-3 border-b last:border-b-0 hover:bg-muted/50"
                             >
-                                <div className="flex items-start space-x-3">
-                                    <Avatar className="h-8 w-8 mt-1">
-                                        <AvatarImage
-                                            src={n.fromUserAvatar || undefined}
-                                            alt={n.fromUserName}
-                                        />
-                                        <AvatarFallback>
-                                            {getInitials(n.fromUserName)}
-                                        </AvatarFallback>
-                                    </Avatar>
-
-                                    <div className="flex-1 text-sm">
-                                        <p>
-                                            <span className="font-semibold">
-                                                {n.fromUserName}
-                                            </span>
-
-                                            {n.type === 'friend_request' &&
-                                                ` sent you a friend request. ${n.message}`}
-
-                                            {n.type === 'friend_request_accepted' &&
-                                                ' accepted your friend request.'}
-                                            {n.type === 'friend_request_rejected' &&
-                                                ' rejected your friend request.'}
-                                            {n.type === 'friend_removed' &&
-                                                ' removed you from friends.'}
-
-                                            {n.type === 'course_shared' &&
-                                                ` shared the course "${n.relatedEntityName}" with you.`}
-                                        </p>
-
-                                        <p className="text-xs text-muted-foreground">
-                                            {new Date(n.createdAt).toLocaleDateString()}
-                                        </p>
-                                    </div>
-                                </div>
+                                <NotificationRow
+                                    notification={n}
+                                />
 
                                 {n.type === 'friend_request' && (
                                     <div className="mt-2 flex justify-end space-x-2">
@@ -244,5 +212,67 @@ export function NotificationBell({ onCourseAccepted }: NotificationBellProps) {
                 )}
             </PopoverContent>
         </Popover>
+    );
+}
+
+function NotificationRow({ notification }: { notification: Notification }) {
+    const { isPremium, usernameStyleKey, avatarEffectKey } =
+        useOtherUserPremiumStatus(notification.fromUserId || null);
+
+    const getInitials = (name: string | null | undefined) => {
+        if (!name) return 'U';
+        const names = name.split(' ');
+        return names.length > 1
+            ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase()
+            : name[0]?.toUpperCase();
+    };
+
+    const displayName = notification.fromUserName || 'User';
+
+    return (
+        <div className="flex flex-col gap-2">
+            <div className="flex items-start space-x-3">
+                <div className="mt-1">
+                    <PremiumAvatar
+                        src={notification.fromUserAvatar || undefined}
+                        alt={displayName}
+                        initials={getInitials(displayName)}
+                        effectKey={avatarEffectKey || undefined}
+                        isPremium={isPremium}
+                        size="sm"
+                    />
+                </div>
+
+                <div className="flex-1 text-sm">
+                    <p className="leading-snug">
+                        <span className="font-semibold">
+                            <PremiumUsername
+                                name={displayName}
+                                styleKey={usernameStyleKey || undefined}
+                                isPremium={isPremium}
+                                className="text-sm"
+                            />
+                        </span>
+
+                        {notification.type === 'friend_request' &&
+                            ` sent you a friend request. ${notification.message}`}
+
+                        {notification.type === 'friend_request_accepted' &&
+                            ' accepted your friend request.'}
+                        {notification.type === 'friend_request_rejected' &&
+                            ' rejected your friend request.'}
+                        {notification.type === 'friend_removed' &&
+                            ' removed you from friends.'}
+
+                        {notification.type === 'course_shared' &&
+                            ` shared the course "${notification.relatedEntityName}" with you.`}
+                    </p>
+
+                    <p className="text-xs text-muted-foreground">
+                        {new Date(notification.createdAt).toLocaleDateString()}
+                    </p>
+                </div>
+            </div>
+        </div>
     );
 }

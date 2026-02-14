@@ -86,6 +86,13 @@ export interface User {
   plan?: 'free' | 'premium';
   stripeCustomerId?: string;
   subscriptionStatus?: 'active' | 'canceled' | 'past_due' | 'trialing';
+  /**
+   * Visual customization – premium-only features.
+   * These are persisted on the user document in Firestore.
+   * Defaults are handled as 'none' when missing.
+   */
+  usernameStyleKey?: string; // e.g. 'none' | 'golden' | 'sunset' | ...
+  avatarEffectKey?: string;  // e.g. 'none' | 'sparkles-gold' | 'halo-glow' | ...
   limits?: {
     coursesCreatedTimestamps: string[];
     whiteboardsCreatedTotal: number;

@@ -3,14 +3,30 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
+import { usePremiumStatus } from '@/hooks/use-premium-status';
+import { useOtherUserPremiumStatus } from '@/hooks/use-other-premium-status';
 import { supabase } from '@/lib/supabase';
 import { getCoursesForUser, updateUserProfile } from '@/lib/firestore';
 import { sendFriendRequest } from '@/app/sendFriendRequestClient';
-import { Loader2, ArrowLeft, Github, Twitter, Linkedin, BookOpen, Edit, Youtube, Globe, UserPlus, Check, Upload, Crown } from 'lucide-react';
+import {
+  Loader2,
+  ArrowLeft,
+  Github,
+  Twitter,
+  Linkedin,
+  BookOpen,
+  Edit,
+  Youtube,
+  Globe,
+  UserPlus,
+  Check,
+  Upload,
+  Crown,
+  Lock,
+} from 'lucide-react';
 import LearnLayout from '@/components/learn-layout';
 import HistorySidebar from '@/components/history-sidebar';
 import type { Course, User } from '@/lib/types';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -23,10 +39,24 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { toast } from '@/hooks/use-toast';
 import { updateProfile } from 'firebase/auth';
-import { ref, uploadString, getDownloadURL } from "firebase/storage";
-import { storage } from '@/lib/firebase'
-import { uploadToCloudinary } from '@/lib/uploadToCloudinary';
-import { AlertDialogHeader, AlertDialogFooter, AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogDescription, AlertDialogTitle, AlertDialogContent } from '@/components/ui/alert-dialog';
+
+import {
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogDescription,
+  AlertDialogTitle,
+  AlertDialogContent,
+} from '@/components/ui/alert-dialog';
+import {
+  PremiumAvatar,
+  PremiumUsername,
+  USERNAME_STYLES,
+  AVATAR_EFFECTS,
+} from '@/components/user-style';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 async function getUserProfileData(userId: string): Promise<any> {
   const userRef = doc(db, "users", userId);
@@ -63,6 +93,9 @@ export default function ProfilePage() {
   const params = useParams();
   const userId = params.userId as string;
 
+  const { isPremium: viewerIsPremium } = usePremiumStatus();
+  const { isPremium: profileIsPremium } = useOtherUserPremiumStatus(userId);
+
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [sidebarCourses, setSidebarCourses] = useState<Course[]>([]);
   const [pageLoading, setPageLoading] = useState(true);
@@ -94,6 +127,13 @@ export default function ProfilePage() {
   const [isSavingPfp, setIsSavingPfp] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
+  // Premium visual customization
+  const [usernameStyleKey, setUsernameStyleKey] = useState<string>('none');
+  const [avatarEffectKey, setAvatarEffectKey] = useState<string>('none');
+  const [isSavingStyles, setIsSavingStyles] = useState(false);
+
+  const canEditPremiumStyles = isOwner && viewerIsPremium;
+
   const handleConfirmSavePfp = () => {
     setShowConfirm(false);
     handleSavePfp(); // Your original save function
@@ -109,6 +149,8 @@ export default function ProfilePage() {
       setAboutMe(userData.aboutMe || '');
       setSocials(userData.socials || { github: '', twitter: '', linkedin: '', youtube: '', website: '' });
       setSelectedCourses(userData.favoriteCourses || []);
+      setUsernameStyleKey(userData.usernameStyleKey || 'none');
+      setAvatarEffectKey(userData.avatarEffectKey || 'none');
       if (user && userData.friends?.includes(user.uid)) {
         setAreAlreadyFriends(true);
       }
@@ -278,10 +320,11 @@ export default function ProfilePage() {
         lastPhotoUpload: now.toISOString(),
       });
 
-      // 7️⃣ Update Firebase Auth profile
-      await updateProfile(user, { photoURL: imageUrl });
-
-      // 8️⃣ Refresh frontend
+      // 7️⃣ Refresh frontend and update local state immediately
+      setProfile((prev) =>
+        prev ? { ...prev, photoURL: imageUrl } : prev
+      );
+      setPfpPreview(null);
       await fetchProfileData();
 
       toast({
@@ -311,6 +354,32 @@ export default function ProfilePage() {
     } catch (err: any) {
       console.error(err);
       toast({ title: "Error", description: err.message || "Failed to update favorite courses.", variant: "destructive" });
+    }
+  };
+
+  const handleSaveVisualStyles = async () => {
+    if (!user || !canEditPremiumStyles) return;
+
+    try {
+      setIsSavingStyles(true);
+      await updateUserProfile(user.uid, {
+        usernameStyleKey,
+        avatarEffectKey,
+      });
+      await fetchProfileData();
+      toast({
+        title: "Premium look updated",
+        description: "Your username gradient and avatar effect have been saved.",
+      });
+    } catch (err: any) {
+      console.error(err);
+      toast({
+        title: "Error",
+        description: err.message || "Failed to update premium styles.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingStyles(false);
     }
   };
   const handlePfpFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -453,53 +522,34 @@ export default function ProfilePage() {
       {/* HEADER */}
       <header className="flex justify-between items-center mb-8">
         <Button variant="ghost" size="sm" asChild>
-          <Link href="/marketplace"><ArrowLeft className="mr-2 h-4 w-4" />Back to Marketplace</Link>
+          <Link href="/learn"><ArrowLeft className="mr-2 h-4 w-4" />Back to Marketplace</Link>
         </Button>
       </header>
 
-      {/* PROFILE PICTURE */}
+      {/* PROFILE HEADER */}
       <div className="flex flex-col md:flex-row items-center gap-8 mb-12">
         <div className="relative">
-          <Dialog open={isPfpOpen} onOpenChange={setIsPfpOpen}>
-            <DialogTrigger asChild disabled={!isOwner}>
-              <div className="relative group">
-                <Avatar className={`h-32 w-32 border-4 ${profile.isPremium || profile.plan === 'premium' ? 'border-yellow-400 ring-2 ring-yellow-400/50' : 'border-primary/20'} ${isOwner ? 'cursor-pointer' : ''}`}>
-                  <AvatarImage src={profile.photoURL} alt={profile.displayName} className="object-cover" />
-                  <AvatarFallback style={{ backgroundColor: '#f5f5dc' }} className="text-5xl text-black">{getInitials(profile.displayName)}</AvatarFallback>
-                </Avatar>
-                {isOwner && (
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Upload className="h-8 w-8 text-white" />
-                  </div>
-                )}
-              </div>
-            </DialogTrigger>
-            {isOwner && (
-              <DialogContent>
-                <DialogHeader><DialogTitle>Change Profile Picture</DialogTitle></DialogHeader>
-                <div className="flex justify-center mb-4">
-                  <div className="relative h-64 w-64 bg-muted-foreground/20 rounded-full overflow-hidden flex items-center justify-center">
-                    {pfpPreview ? (
-                      <img src={pfpPreview} alt="Profile preview" className="h-full w-full object-cover" />
-                    ) : (
-                      <span className="text-muted-foreground">Image preview</span>
-                    )}
-                  </div>
-                </div>
-                <p className="text-sm text-destructive font-bold text-center mb-4">NOTE: Inappropriate profile pictures will result in a permanent ban from this website.</p>
-                <Input type="file" accept="image/*" onChange={handlePfpFileChange} className="mb-4" />
-                <Button onClick={() => { setShowConfirm(true) }} disabled={!profilePicture || isSavingPfp}>
-                  {isSavingPfp ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save"}
-                </Button>
-              </DialogContent>
-            )}
-          </Dialog>
+          <PremiumAvatar
+            src={profile.photoURL}
+            alt={profile.displayName}
+            initials={getInitials(profile.displayName)}
+            effectKey={profile.avatarEffectKey}
+            isPremium={!!profileIsPremium}
+            size="xl"
+          />
         </div>
         <div className="text-center md:text-left flex-grow">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <h1 className={`text-4xl font-bold font-headline ${profile.isPremium || profile.plan === 'premium' ? 'bg-gradient-to-r from-yellow-400 via-orange-500 to-yellow-400 bg-clip-text text-transparent' : 'text-primary'}`}>{profile.displayName}</h1>
-              {(profile.isPremium || profile.plan === 'premium') && (
+              <h1 className="text-4xl font-bold">
+                <PremiumUsername
+                  name={profile.displayName}
+                  styleKey={profile.usernameStyleKey}
+                  isPremium={!!profileIsPremium}
+                  className="text-4xl"
+                />
+              </h1>
+              {profileIsPremium && (
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs font-bold rounded-full shadow-lg">
                   <Crown className="w-3 h-3" />
                   PREMIUM
@@ -528,100 +578,470 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* ABOUT ME, SOCIALS, FAVORITE COURSES */}
-      <div className="space-y-12">
-        {/* About Me */}
-        <Card className="bg-card/50 border-border/50 shadow-lg">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="font-headline text-2xl text-primary">About Me</CardTitle>
-            {isOwner && (
-              <Dialog open={isAboutMeOpen} onOpenChange={setAboutMeOpen}>
-                <DialogTrigger asChild><Button variant="ghost" size="icon"><Edit className="h-5 w-5" /></Button></DialogTrigger>
-                <DialogContent>
-                  <DialogHeader><DialogTitle>Edit About Me</DialogTitle></DialogHeader>
-                  <Textarea value={aboutMe} onChange={(e) => setAboutMe(e.target.value)} rows={5} maxLength={ABOUT_ME_LIMIT} />
-                  <div className="text-right text-sm text-muted-foreground">{aboutMe.length} / {ABOUT_ME_LIMIT}</div>
-                  <Button onClick={handleSaveAboutMe}>Save</Button>
-                </DialogContent>
-              </Dialog>
-            )}
-          </CardHeader>
-          <CardContent><p className="text-muted-foreground text-lg">{profile.aboutMe || 'This user doesn\'t have an about me.'}</p></CardContent>
-        </Card>
+      {/* TABBED CONTENT */}
+      <Tabs defaultValue="overview" className="space-y-6">
+        <div className="flex items-center justify-between">
+          <TabsList
+  className="
+    grid w-full grid-cols-3
+    border-b border-border
+    rounded-none
+    bg-transparent
+    p-0
+  "
+>
+  <TabsTrigger
+    value="overview"
+    className="
+      relative rounded-none
+      px-4 py-3
+      text-sm font-semibold
+      text-muted-foreground
+      transition-colors
+      data-[state=active]:text-primary
+      data-[state=active]:after:absolute
+      data-[state=active]:after:bottom-0
+      data-[state=active]:after:left-0
+      data-[state=active]:after:h-[2px]
+      data-[state=active]:after:w-full
+      data-[state=active]:after:bg-primary
+    "
+  >
+    Overview
+  </TabsTrigger>
 
-        {/* Socials */}
-        <Card className="bg-card/50 border-border/50 shadow-lg">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="font-headline text-2xl text-primary">My Socials</CardTitle>
-            {isOwner && (
-              <Dialog open={isSocialsOpen} onOpenChange={setSocialsOpen}>
-                <DialogTrigger asChild><Button variant="ghost" size="icon"><Edit className="h-5 w-5" /></Button></DialogTrigger>
-                <DialogContent>
-                  <DialogHeader><DialogTitle>Edit Social Links</DialogTitle></DialogHeader>
-                  <div className="space-y-4">
-                    {['github', 'linkedin', 'twitter', 'youtube', 'website'].map(key => (
-                      <div key={key}>
-                        <Input placeholder={`${key} URL`} value={socials[key as keyof typeof socials]} onChange={(e) => setSocials({ ...socials, [key]: e.target.value })} />
-                        {socialsErrors[key as keyof typeof socialsErrors] && <p className="text-red-500 text-sm mt-1">{socialsErrors[key as keyof typeof socialsErrors]}</p>}
+  <TabsTrigger
+    value="username"
+    className="
+      relative rounded-none
+      px-4 py-3
+      text-sm font-semibold
+      text-muted-foreground
+      transition-colors
+      data-[state=active]:text-primary
+      data-[state=active]:after:absolute
+      data-[state=active]:after:bottom-0
+      data-[state=active]:after:left-0
+      data-[state=active]:after:h-[2px]
+      data-[state=active]:after:w-full
+      data-[state=active]:after:bg-primary
+    "
+  >
+    Username &amp; flair
+  </TabsTrigger>
+
+  <TabsTrigger
+    value="avatar"
+    className="
+      relative rounded-none
+      px-4 py-3
+      text-sm font-semibold
+      text-muted-foreground
+      transition-colors
+      data-[state=active]:text-primary
+      data-[state=active]:after:absolute
+      data-[state=active]:after:bottom-0
+      data-[state=active]:after:left-0
+      data-[state=active]:after:h-[2px]
+      data-[state=active]:after:w-full
+      data-[state=active]:after:bg-primary
+    "
+  >
+    Avatar &amp; effects
+  </TabsTrigger>
+</TabsList>
+        </div>
+
+        {/* OVERVIEW TAB */}
+        <TabsContent value="overview">
+          <div className="space-y-8">
+            {/* About Me */}
+            <Card className="bg-card/50 border-border/50 shadow-lg">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="font-headline text-2xl text-primary">About Me</CardTitle>
+                {isOwner && (
+                  <Dialog open={isAboutMeOpen} onOpenChange={setAboutMeOpen}>
+                    <DialogTrigger asChild><Button variant="ghost" size="icon"><Edit className="h-5 w-5" /></Button></DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader><DialogTitle>Edit About Me</DialogTitle></DialogHeader>
+                      <Textarea value={aboutMe} onChange={(e) => setAboutMe(e.target.value)} rows={5} maxLength={ABOUT_ME_LIMIT} />
+                      <div className="text-right text-sm text-muted-foreground">{aboutMe.length} / {ABOUT_ME_LIMIT}</div>
+                      <Button onClick={handleSaveAboutMe}>Save</Button>
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </CardHeader>
+              <CardContent><p className="text-muted-foreground text-lg">{profile.aboutMe || 'This user doesn\'t have an about me.'}</p></CardContent>
+            </Card>
+
+            {/* Socials */}
+            <Card className="bg-card/50 border-border/50 shadow-lg">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="font-headline text-2xl text-primary">My Socials</CardTitle>
+                {isOwner && (
+                  <Dialog open={isSocialsOpen} onOpenChange={setSocialsOpen}>
+                    <DialogTrigger asChild><Button variant="ghost" size="icon"><Edit className="h-5 w-5" /></Button></DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader><DialogTitle>Edit Social Links</DialogTitle></DialogHeader>
+                      <div className="space-y-4">
+                        {['github', 'linkedin', 'twitter', 'youtube', 'website'].map(key => (
+                          <div key={key}>
+                            <Input placeholder={`${key} URL`} value={socials[key as keyof typeof socials]} onChange={(e) => setSocials({ ...socials, [key]: e.target.value })} />
+                            {socialsErrors[key as keyof typeof socialsErrors] && <p className="text-red-500 text-sm mt-1">{socialsErrors[key as keyof typeof socialsErrors]}</p>}
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                  <Button onClick={handleSaveSocials}>Save</Button>
-                </DialogContent>
-              </Dialog>
-            )}
-          </CardHeader>
-          <CardContent className="flex items-center gap-4">
-            {hasSocials ? (
-              <TooltipProvider delayDuration={200}>
-                {profile.socials?.github && <Tooltip><TooltipTrigger asChild><a href={profile.socials.github} target="_blank" rel="noopener noreferrer"><Button variant="outline" size="icon"><Github className="h-6 w-6" /></Button></a></TooltipTrigger><TooltipContent><p>{profile.socials.github}</p></TooltipContent></Tooltip>}
-                {profile.socials?.linkedin && <Tooltip><TooltipTrigger asChild><a href={profile.socials.linkedin} target="_blank" rel="noopener noreferrer"><Button variant="outline" size="icon"><Linkedin className="h-6 w-6" /></Button></a></TooltipTrigger><TooltipContent><p>{profile.socials.linkedin}</p></TooltipContent></Tooltip>}
-                {profile.socials?.twitter && <Tooltip><TooltipTrigger asChild><a href={profile.socials.twitter} target="_blank" rel="noopener noreferrer"><Button variant="outline" size="icon"><Twitter className="h-6 w-6" /></Button></a></TooltipTrigger><TooltipContent><p>{profile.socials.twitter}</p></TooltipContent></Tooltip>}
-                {profile.socials?.youtube && <Tooltip><TooltipTrigger asChild><a href={profile.socials.youtube} target="_blank" rel="noopener noreferrer"><Button variant="outline" size="icon"><Youtube className="h-6 w-6" /></Button></a></TooltipTrigger><TooltipContent><p>{profile.socials.youtube}</p></TooltipContent></Tooltip>}
-                {profile.socials?.website && <Tooltip><TooltipTrigger asChild><a href={profile.socials.website} target="_blank" rel="noopener noreferrer"><Button variant="outline" size="icon"><Globe className="h-6 w-6" /></Button></a></TooltipTrigger><TooltipContent><p>{profile.socials.website}</p></TooltipContent></Tooltip>}
-              </TooltipProvider>
-            ) : (
-              <p className="text-muted-foreground">This user doesn't have any socials.</p>
-            )}
-          </CardContent>
-        </Card>
+                      <Button onClick={handleSaveSocials}>Save</Button>
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </CardHeader>
+              <CardContent className="flex items-center gap-4">
+                {hasSocials ? (
+                  <TooltipProvider delayDuration={200}>
+                    {profile.socials?.github && <Tooltip><TooltipTrigger asChild><a href={profile.socials.github} target="_blank" rel="noopener noreferrer"><Button variant="outline" size="icon"><Github className="h-6 w-6" /></Button></a></TooltipTrigger><TooltipContent><p>{profile.socials.github}</p></TooltipContent></Tooltip>}
+                    {profile.socials?.linkedin && <Tooltip><TooltipTrigger asChild><a href={profile.socials.linkedin} target="_blank" rel="noopener noreferrer"><Button variant="outline" size="icon"><Linkedin className="h-6 w-6" /></Button></a></TooltipTrigger><TooltipContent><p>{profile.socials.linkedin}</p></TooltipContent></Tooltip>}
+                    {profile.socials?.twitter && <Tooltip><TooltipTrigger asChild><a href={profile.socials.twitter} target="_blank" rel="noopener noreferrer"><Button variant="outline" size="icon"><Twitter className="h-6 w-6" /></Button></a></TooltipTrigger><TooltipContent><p>{profile.socials.twitter}</p></TooltipContent></Tooltip>}
+                    {profile.socials?.youtube && <Tooltip><TooltipTrigger asChild><a href={profile.socials.youtube} target="_blank" rel="noopener noreferrer"><Button variant="outline" size="icon"><Youtube className="h-6 w-6" /></Button></a></TooltipTrigger><TooltipContent><p>{profile.socials.youtube}</p></TooltipContent></Tooltip>}
+                    {profile.socials?.website && <Tooltip><TooltipTrigger asChild><a href={profile.socials.website} target="_blank" rel="noopener noreferrer"><Button variant="outline" size="icon"><Globe className="h-6 w-6" /></Button></a></TooltipTrigger><TooltipContent><p>{profile.socials.website}</p></TooltipContent></Tooltip>}
+                  </TooltipProvider>
+                ) : (
+                  <p className="text-muted-foreground">This user doesn't have any socials.</p>
+                )}
+              </CardContent>
+            </Card>
 
-        {/* Favorite Courses */}
-        <Card className="bg-card/50 border-border/50 shadow-lg">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="font-headline text-2xl text-primary">My Favorite Courses</CardTitle>
-            {isOwner && (
-              <Dialog open={isCoursesOpen} onOpenChange={setCoursesOpen}>
-                <DialogTrigger asChild><Button variant="ghost" size="icon"><Edit className="h-5 w-5" /></Button></DialogTrigger>
-                <DialogContent className="max-w-3xl">
-                  <DialogHeader><DialogTitle>Select up to 3 Favorite Courses</DialogTitle></DialogHeader>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 max-h-[60vh] overflow-y-auto">
-                    {sidebarCourses.map(course => (
-                      <Card key={course.id} className={`cursor-pointer transition-all ${selectedCourses.includes(course.topic) ? 'border-primary shadow-lg' : 'border-border'}`} onClick={() => handleCourseSelection(course.topic)}>
-                        <CardHeader><CardTitle className="text-lg">{course.topic}</CardTitle></CardHeader>
-                        <CardContent>{(course.steps || [])[0]?.content && <p className="text-sm text-muted-foreground line-clamp-3">{(course.steps || [])[0]?.content?.substring(0, 100)}</p>}</CardContent>
-                      </Card>
-                    ))}
+            {/* Favorite Courses */}
+            <Card className="bg-card/50 border-border/50 shadow-lg">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="font-headline text-2xl text-primary">My Favorite Courses</CardTitle>
+                {isOwner && (
+                  <Dialog open={isCoursesOpen} onOpenChange={setCoursesOpen}>
+                    <DialogTrigger asChild><Button variant="ghost" size="icon"><Edit className="h-5 w-5" /></Button></DialogTrigger>
+                    <DialogContent className="max-w-3xl">
+                      <DialogHeader><DialogTitle>Select up to 3 Favorite Courses</DialogTitle></DialogHeader>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 max-h-[60vh] overflow-y-auto">
+                        {sidebarCourses.map(course => (
+                          <Card key={course.id} className={`cursor-pointer transition-all ${selectedCourses.includes(course.topic) ? 'border-primary shadow-lg' : 'border-border'}`} onClick={() => handleCourseSelection(course.topic)}>
+                            <CardHeader><CardTitle className="text-lg">{course.topic}</CardTitle></CardHeader>
+                            <CardContent>{(course.steps || [])[0]?.content && <p className="text-sm text-muted-foreground line-clamp-3">{(course.steps || [])[0]?.content?.substring(0, 100)}</p>}</CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                      <Button onClick={handleSaveFavoriteCourses}>Save</Button>
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {profile.favoriteCourses?.length ? (
+                  profile.favoriteCourses.map((course, index) => (
+                    <div key={index} className="bg-muted/50 p-6 rounded-lg flex items-center gap-4 hover:bg-muted transition-colors">
+                      <BookOpen className="h-8 w-8 text-primary" />
+                      <h3 className="font-semibold text-lg">{course}</h3>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-muted-foreground col-span-full">This user doesn't have any favorite courses.</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* USERNAME & FLAIR TAB */}
+        <TabsContent value="username">
+          <Card className="bg-card/60 border-border/60 shadow-xl">
+            <CardHeader className="flex flex-row items-center justify-between gap-4">
+              <div>
+                <CardTitle className="font-headline text-2xl text-primary">
+                  Username &amp; flair
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Make Your Display Name Visually Attractive.
+                </p>
+              </div>
+              <div className="flex flex-col items-end gap-1">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-primary/10 text-primary border border-primary/30">
+                  <Lock className="w-3 h-3" />
+                  Premium only
+                </span>
+                {isOwner && !viewerIsPremium && (
+                  <Link
+                    href="/#pricing"
+                    className="text-xs text-primary hover:underline mt-1"
+                  >
+                    Unlock gradients with Premium
+                  </Link>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-8">
+              {/* Display name editor */}
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-foreground">
+                  Display name
+                </p>
+                {isOwner ? (
+                  <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                    <Input
+                      value={newDisplayName}
+                      onChange={(e) => setNewDisplayName(e.target.value)}
+                      placeholder="Your display name"
+                      className="sm:max-w-xs"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={handleSaveDisplayName}
+                      disabled={!newDisplayName.trim()}
+                    >
+                      Save name
+                    </Button>
                   </div>
-                  <Button onClick={handleSaveFavoriteCourses}>Save</Button>
-                </DialogContent>
-              </Dialog>
-            )}
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {profile.favoriteCourses?.length ? (
-              profile.favoriteCourses.map((course, index) => (
-                <div key={index} className="bg-muted/50 p-6 rounded-lg flex items-center gap-4 hover:bg-muted transition-colors">
-                  <BookOpen className="h-8 w-8 text-primary" />
-                  <h3 className="font-semibold text-lg">{course}</h3>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {profile.displayName}
+                  </p>
+                )}
+              </div>
+
+              {/* Username styles */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-foreground">
+                    Username gradients
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {canEditPremiumStyles
+                      ? "Tap a style to preview and select."
+                      : isOwner
+                      ? "Preview only – requires Premium."
+                      : "Preview of this user's style."}
+                  </p>
                 </div>
-              ))
-            ) : (
-              <p className="text-muted-foreground col-span-full">This user doesn't have any favorite courses.</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {USERNAME_STYLES.map((style) => {
+                    const isActive = style.key === usernameStyleKey;
+                    const disabled = !canEditPremiumStyles;
+                    return (
+                      <button
+                        key={style.key}
+                        type="button"
+                        onClick={() => {
+                          if (disabled) return;
+                          setUsernameStyleKey(style.key);
+                        }}
+                        className={`group rounded-xl border text-left p-3 transition-all ${
+                          isActive
+                            ? 'border-primary ring-2 ring-primary/40 shadow-lg scale-[1.01]'
+                            : 'border-border/60 hover:border-primary/60 hover:shadow-md'
+                        } ${
+                          disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+                        } bg-gradient-to-br from-background via-background/80 to-muted/60`}
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            {style.label}
+                          </span>
+                          {isActive && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">
+                              Selected
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mb-2 line-clamp-2">
+                          {style.description}
+                        </p>
+                        <div className="rounded-lg px-3 py-2 bg-background/80 border border-border/60">
+                          <PremiumUsername
+                            name={profile.displayName}
+                            styleKey={style.key}
+                            isPremium={true}
+                            className="text-base"
+                          />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {isOwner && (
+                  <div className="flex items-center justify-between pt-2">
+                    <p className="text-xs text-muted-foreground">
+                      Gradients are only active while your premium subscription is active.
+                    </p>
+                    <Button
+                      size="sm"
+                      onClick={handleSaveVisualStyles}
+                      disabled={!canEditPremiumStyles || isSavingStyles}
+                    >
+                      {isSavingStyles && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      Save premium look
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* AVATAR & EFFECTS TAB */}
+        <TabsContent value="avatar">
+          <Card className="bg-card/60 border-border/60 shadow-xl">
+            <CardHeader className="flex flex-row items-center justify-between gap-4">
+              <div>
+                <CardTitle className="font-headline text-2xl text-primary">
+                  Avatar &amp; effects
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Make Your Pfp Visually Attractive
+                </p>
+              </div>
+              <div className="flex flex-col items-end gap-1">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-primary/10 text-primary border border-primary/30">
+                  <Lock className="w-3 h-3" />
+                  Premium only
+                </span>
+                {isOwner && !viewerIsPremium && (
+                  <Link
+                    href="/#pricing"
+                    className="text-xs text-primary hover:underline mt-1"
+                  >
+                    Unlock avatar effects with Premium
+                  </Link>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-8">
+              <div className="grid gap-8 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1.6fr)] items-start">
+                {/* Avatar + uploader */}
+                <div className="flex flex-col items-center gap-4">
+                  <PremiumAvatar
+                    src={pfpPreview || profile.photoURL}
+                    alt={profile.displayName}
+                    initials={getInitials(profile.displayName)}
+                    effectKey={avatarEffectKey}
+                    isPremium={!!profileIsPremium}
+                    size="xl"
+                  />
+                  {isOwner && (
+                    <>
+                      <p className="text-xs text-muted-foreground text-center max-w-xs">
+                        You can change your profile picture <span className="font-semibold">up to three times per month</span>.
+                      </p>
+                      <div className="flex flex-col gap-2 w-full items-center">
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          onChange={handlePfpFileChange}
+                          className="max-w-xs text-xs"
+                        />
+                        <Button
+                          size="sm"
+                          onClick={() => setShowConfirm(true)}
+                          disabled={!pfpPreview || isSavingPfp}
+                        >
+                          {isSavingPfp ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            'Upload new avatar'
+                          )}
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Avatar effects */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-foreground">
+                      Avatar effects
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {canEditPremiumStyles
+                        ? "Choose an effect to wrap your profile picture."
+                        : isOwner
+                        ? "Preview only – requires Premium."
+                        : "Preview of this user's avatar effects."}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {AVATAR_EFFECTS.map((effect) => {
+                      const isActive = effect.key === avatarEffectKey;
+                      const disabled = !canEditPremiumStyles;
+                      return (
+                        <button
+                          key={effect.key}
+                          type="button"
+                          onClick={() => {
+                            if (disabled) return;
+                            setAvatarEffectKey(effect.key);
+                          }}
+                          className={`group rounded-xl border text-left p-3 transition-all ${
+                            isActive
+                              ? 'border-primary ring-2 ring-primary/40 shadow-lg scale-[1.01]'
+                              : 'border-border/60 hover:border-primary/60 hover:shadow-md'
+                          } ${
+                            disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+                          } bg-gradient-to-br from-background via-background/80 to-muted/60 flex flex-col gap-3`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                              {effect.label}
+                            </span>
+                            {isActive && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">
+                                Selected
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground line-clamp-2">
+                            {effect.description}
+                          </p>
+                          <div className="flex items-center justify-center pt-1">
+                            <PremiumAvatar
+                              src={profile.photoURL}
+                              alt={profile.displayName}
+                              initials={getInitials(profile.displayName)}
+                              effectKey={effect.key}
+                              isPremium={true}
+                              size="lg"
+                            />
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {isOwner && (
+                    <div className="flex items-center justify-between pt-2">
+                      <p className="text-xs text-muted-foreground">
+                        Effects are only active while your premium subscription is active.
+                      </p>
+                      <Button
+                        size="sm"
+                        onClick={handleSaveVisualStyles}
+                        disabled={!canEditPremiumStyles || isSavingStyles}
+                      >
+                        {isSavingStyles && (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        )}
+                        Save premium look
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
       <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>

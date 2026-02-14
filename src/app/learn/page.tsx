@@ -34,7 +34,7 @@ export default function LearnPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isPremium } = usePremiumStatus();
-
+  const [isSubscriptionActive, setIsSubscriptionActive] = useState<boolean>(isPremium)
   useEffect(() => {
     setIsClient(true);
     if (!loading) {
@@ -46,19 +46,40 @@ export default function LearnPage() {
     }
   }, [user, loading, router]);
 
-  // 🔥 Handle successful Stripe payment redirect
+  // 🔥 Handle successful Stripe payment redirect - sync subscription then show toast
   useEffect(() => {
     const success = searchParams.get('success');
-    if (success === 'true') {
-      toast({
+    const sessionId = searchParams.get('session_id');
+    const resubscribe = searchParams.get('resubscribe') === '1';
+
+    if (success !== 'true' || !user) return;
+
+    const syncAndNotify = async () => {
+      if (sessionId) {
+        try {
+          await fetch('/api/stripe/sync-subscription', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId, userId: user.uid, resubscribe }),
+          });
+         setIsSubscriptionActive(true);
+        } catch (err) {
+          console.error('Failed to sync subscription:', err);
+        }
+      }
+                toast({
         title: '🎉 Welcome to Premium!',
         description: 'Your subscription is now active. Enjoy enhanced features!',
       });
-      // Clean up URL
-      router.replace('/learn');
-    }
-  }, [searchParams, toast, router]);
+      
+      window.location.href='/learn'
+      window.location.reload()
+      window.location.href='/learn'
+    };
 
+    syncAndNotify();
+  }, [searchParams, user, toast, router]);
+ 
   const fetchCourses = useCallback(async () => {
     if (user && user.emailVerified) {
       const userCourses = await getCoursesForUser(user.uid);
@@ -246,12 +267,7 @@ export default function LearnPage() {
     />
   ) : (
     <div className="h-full flex flex-col items-center justify-center p-4 md:p-8">
-      {/* Premium Dashboard - shown above topic selection for premium users */}
-      {isPremium && (
-        <div className="w-full max-w-4xl mb-6">
-          <PremiumDashboard />
-        </div>
-      )}
+      
       <TopicSelection
         soloCoursesCount={courses.filter(c => c.courseMode === 'Solo').length}
         collaborativeCoursesCount={courses.filter(c => c.courseMode === 'Collaborative').length}

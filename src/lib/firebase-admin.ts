@@ -30,8 +30,7 @@ export function getFirebaseAdmin() {
 
 export function getFirestoreAdmin(): Firestore {
   if (!db) {
-    getFirebaseAdmin();
-    db = getFirestore();
+    db = getFirestore(getFirebaseAdmin());
   }
   return db;
 }

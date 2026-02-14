@@ -8,7 +8,7 @@
  * - GenerateStepQuizOutput - The return type for the function.
  */
 
-import { ai, llama3Model } from '@/ai/genkit';
+import { ai, llama3Model } from '../genkit';
 import { z } from 'genkit';
 
 const GenerateStepQuizInputSchema = z.object({
@@ -72,7 +72,10 @@ const generateStepQuizFlow = ai.defineFlow(
     outputSchema: GenerateStepQuizOutputSchema,
   },
   async input => {
-    const { output } = await prompt(input, { model: llama3Model });
+    const { output } = await prompt(input, {
+      model: llama3Model,
+      config: { maxOutputTokens: 2048 },
+    });
     if (!output || !output.quiz || output.quiz.length < 6) {
       throw new Error('AI failed to generate a complete quiz for this step.');
     }

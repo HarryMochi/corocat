@@ -3,7 +3,7 @@
  * @fileOverview Validates the topic, then generates a title, outline, and content for a complete course.
  */
 
-import { ai, llama3Model } from '@/ai/genkit';
+import { ai, llama3Model } from '../genkit';
 import {
   GenerateCourseOutlineInputSchema,
   generateCourseOutlinePrompt,
@@ -41,7 +41,10 @@ const validateTopicFlow = ai.defineFlow(
     outputSchema: ValidateTopicOutputSchema,
   },
   async (input) => {
-    const { output } = await validateTopicPrompt(input, { model });
+    const { output } = await validateTopicPrompt(input, {
+      model,
+      config: { maxOutputTokens: 2048 },
+    });
     if (!output) {
       throw new Error('AI failed to validate the topic.');
     }
@@ -57,7 +60,10 @@ const generateCourseTitleFlow = ai.defineFlow(
     outputSchema: GenerateCourseTitleOutputSchema,
   },
   async (input) => {
-    const { output } = await generateCourseTitlePrompt(input, { model });
+    const { output } = await generateCourseTitlePrompt(input, {
+      model,
+      config: { maxOutputTokens: 1024 },
+    });
     if (!output || !output.title) {
       throw new Error('AI failed to generate a course title.');
     }
@@ -73,7 +79,10 @@ const generateCourseOutlineFlow = ai.defineFlow(
     outputSchema: GenerateCourseOutlineOutputSchema,
   },
   async (input) => {
-    const { output } = await generateCourseOutlinePrompt(input, { model });
+    const { output } = await generateCourseOutlinePrompt(input, {
+      model,
+      config: { maxOutputTokens: 4096 },
+    });
     if (!output || !output.outline || output.outline.length === 0) {
       throw new Error('AI failed to generate a course outline.');
     }
@@ -89,7 +98,10 @@ const generateStepContentFlow = ai.defineFlow(
     outputSchema: GenerateStepContentOutputSchema,
   },
   async (input) => {
-    const { output } = await generateStepContentPrompt(input, { model });
+    const { output } = await generateStepContentPrompt(input, {
+      model,
+      config: { maxOutputTokens: 4096 },
+    });
     if (!output || !output.subSteps || output.subSteps.length === 0 || !output.externalLinks || output.externalLinks.length < 2) {
       throw new Error(`AI failed to generate complete content for step: ${input.stepTitle}`);
     }

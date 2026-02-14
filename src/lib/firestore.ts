@@ -161,6 +161,9 @@ export async function getUserProfileData(userId: string) {
       plan: userData.plan || 'free',
       stripeCustomerId: userData.stripeCustomerId,
       subscriptionStatus: userData.subscriptionStatus,
+      // Premium visual customization (fall back to 'none' when missing)
+      usernameStyleKey: userData.usernameStyleKey || 'none',
+      avatarEffectKey: userData.avatarEffectKey || 'none',
       limits: userData.limits || { coursesCreatedTimestamps: [], whiteboardsCreatedTotal: 0 },
     };
   } catch (error) {

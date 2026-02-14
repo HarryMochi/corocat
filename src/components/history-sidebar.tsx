@@ -22,6 +22,15 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { PremiumDashboard } from "@/components/premium-dashboard";
 import { checkCourseLimit, checkWhiteboardLimit, getPlanLimits, getUserPlan } from "@/lib/limits";
 import Link from "next/link";
 import {
@@ -42,11 +51,15 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+
+
+
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 
 import { Separator } from "./ui/separator";
 import { SocialsModal } from './socials-modal';
 import { NotificationBell } from './notification-bell';
+import { usePremiumStatus } from '../hooks/use-premium-status';
 
 interface HistorySidebarProps {
   user: User | null;
@@ -72,6 +85,16 @@ export default function HistorySidebar({
   onCourseAdded,
 }: HistorySidebarProps) {
   const [hasMounted, setHasMounted] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [resubscribeDialogOpen, setResubscribeDialogOpen] = useState(false);
+  const { isPremium, subscriptionDetails } = usePremiumStatus();
+  const [planDialogOpen, setPlanDialogOpen] = useState(false);
+  const effectiveUser: User | null =
+    user && isPremium ? ({ ...user, plan: 'premium' } as User) : user;
+
+  const currentPlan = effectiveUser ? getUserPlan(effectiveUser) : 'free';
+  const autoRenews = isPremium && !subscriptionDetails?.cancelAtPeriodEnd;
 
   useEffect(() => {
     setHasMounted(true);
@@ -103,6 +126,23 @@ export default function HistorySidebar({
       : name[0];
   };
 
+  const handleCancelAutoRenew = async () => {
+    if (!user || !isPremium) return;
+    try {
+      setCancelLoading(true);
+      await fetch('/api/stripe/toggle-renewal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.uid, autoRenew: false }),
+      });
+      setCancelDialogOpen(false);
+    } catch (err) {
+      console.error('Failed to cancel auto-renewal:', err);
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
   return (
     <div className="bg-muted/50 h-full flex flex-col">
       {/* Header */}
@@ -120,37 +160,126 @@ export default function HistorySidebar({
             </Button>
           </SocialsModal>
 
-          {user && (
+          {effectiveUser && (
             <div className="bg-card rounded-md p-3 border space-y-3 text-xs">
               <div className="flex items-center justify-between font-semibold">
                 <span className="flex items-center gap-1.5"><Zap className="w-3 h-3 text-yellow-500" /> Plan Usage</span>
-                {getUserPlan(user) === 'free' ? (
-                  <Link href="/#pricing" className="text-primary hover:underline capitalize">{getUserPlan(user)} <span className="text-[10px] ml-1">Upgrade</span></Link>
+                {!isPremium ? (
+                  <div className="flex flex-col items-end gap-0.5">
+                    <Link
+                      href="/#pricing"
+                      className="text-primary hover:underline capitalize"
+                    >
+                      {currentPlan}{' '}
+                      <span className="text-[10px] ml-1">Upgrade</span>
+                    </Link>
+                    <span className="text-[10px] text-muted-foreground">5 courses/week, 3 whiteboards lifetime</span>
+                  </div>
                 ) : (
-                  <span className="capitalize text-muted-foreground">{getUserPlan(user)}</span>
+                  <div className="flex flex-col gap-1.5">
+                    <span className="capitalize text-muted-foreground">
+                      Premium
+                    </span>
+                    {autoRenews ? (
+                      <>
+                        <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-[11px] text-amber-600 border-amber-500/50 hover:bg-amber-500/10"
+                              disabled={cancelLoading}
+                            >
+                              {cancelLoading ? 'Canceling...' : 'Cancel Auto Renewal'}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Cancel auto-renewal?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Your subscription will stay active until the end of your current billing period. You will not be charged again. You can resubscribe anytime before it ends.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Keep Auto-Renewal</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  handleCancelAutoRenew();
+                                }}
+                                className="bg-amber-600 hover:bg-amber-700"
+                              >
+                                {cancelLoading ? 'Canceling...' : 'Cancel Auto Renewal'}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </>
+                    ) : (
+                      <>
+                        <AlertDialog open={resubscribeDialogOpen} onOpenChange={setResubscribeDialogOpen}>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              className="h-7 text-[11px]"
+                            >
+                              Resubscribe
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Resubscribe</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                You can resubscribe at the end of your membership.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogAction onClick={() => setResubscribeDialogOpen(false)}>OK</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
 
               {/* Course Limit */}
               <div>
                 <div className="flex justify-between mb-1">
-                  <span>Courses (1h)</span>
-                  <span className={checkCourseLimit(user).allowed ? "text-muted-foreground" : "text-destructive font-bold"}>
-                    {getPlanLimits(getUserPlan(user)).coursesPerHour - checkCourseLimit(user).remaining} / {getPlanLimits(getUserPlan(user)).coursesPerHour}
+                  <span>Courses ({checkCourseLimit(effectiveUser).windowLabel === 'week' ? '1w' : '1h'})</span>
+                  <span className={checkCourseLimit(effectiveUser).allowed ? "text-muted-foreground" : "text-destructive font-bold"}>
+                    {checkCourseLimit(effectiveUser).limit - checkCourseLimit(effectiveUser).remaining} / {checkCourseLimit(effectiveUser).limit}
                   </span>
                 </div>
                 {/* Progress Bar could go here */}
               </div>
+<div className="space-y-1">
+  <div className="flex justify-between">
+    <span>Whiteboards {!isPremium && <span className="text-[10px] text-muted-foreground">(lifetime)</span>}</span>
+    <span
+      className={checkWhiteboardLimit(
+        effectiveUser,
+        effectiveUser.limits?.whiteboardsCreatedTotal || 0
+      ).allowed
+        ? "text-muted-foreground"
+        : "text-destructive font-bold"}
+    >
+      {effectiveUser.limits?.whiteboardsCreatedTotal || 0} /{" "}
+      {getPlanLimits(currentPlan).whiteboardsTotal}
+    </span>
+  </div>
 
-              {/* Whiteboard Limit */}
-              <div>
-                <div className="flex justify-between mb-1">
-                  <span>Whiteboards</span>
-                  <span className={checkWhiteboardLimit(user, user.limits?.whiteboardsCreatedTotal || 0).allowed ? "text-muted-foreground" : "text-destructive font-bold"}>
-                    {user.limits?.whiteboardsCreatedTotal || 0} / {getPlanLimits(getUserPlan(user)).whiteboardsTotal}
-                  </span>
-                </div>
-              </div>
+  {isPremium && (
+    <button
+      onClick={() => setPlanDialogOpen(true)}
+      className="text-[11px] text-primary hover:underline self-start"
+    >
+      Plan details
+    </button>
+  )}
+</div>
             </div>
           )}
 
@@ -304,6 +433,21 @@ export default function HistorySidebar({
           </>
         )}
       </div>
+      <Dialog open={planDialogOpen} onOpenChange={setPlanDialogOpen}>
+  <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+    <DialogHeader>
+      <DialogTitle>Premium Plan Details</DialogTitle>
+    </DialogHeader>
+
+    <PremiumDashboard />
+
+    <DialogFooter>
+      <Button variant="outline" onClick={() => setPlanDialogOpen(false)}>
+        Close
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
     </div>
   );
 }

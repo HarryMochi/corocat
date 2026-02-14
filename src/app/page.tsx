@@ -23,9 +23,6 @@ const DiscordIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-// 🔥 YOUR STRIPE PAYMENT LINK
-const STRIPE_PAYMENT_LINK = 'https://buy.stripe.com/test_aFa3cv1QP5t07zbdkh4Ja01';
-
 export default function LandingPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -56,38 +53,35 @@ export default function LandingPage() {
     redirectToStripe();
   };
 
-  // 🔥 Stripe redirect function
-  const redirectToStripe = () => {
+  // Start Stripe Checkout via API (creates subscription session)
+  const redirectToStripe = async () => {
     if (!user) return;
 
-    console.log('💳 Building Stripe URL...');
-    console.log('User ID:', user.uid);
-    console.log('Email:', user.email);
-
+    setLoadingCheckout(true);
     try {
-      const url = new URL(STRIPE_PAYMENT_LINK);
-      
-      // 🔥 CRITICAL: Add user ID and email
-      url.searchParams.set('client_reference_id', user.uid);
-      if (user.email) {
-        url.searchParams.set('prefilled_email', user.email);
-      }
-      
-      // 🔥 CRITICAL: Add success URL to redirect back to /learn
-      url.searchParams.set('success_url', `${window.location.origin}/learn?success=true`);
-      url.searchParams.set('cancel_url', `${window.location.origin}/?canceled=true`);
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.uid, plan: isYearly ? 'yearly' : 'monthly' }),
+      });
 
-      console.log('🚀 Final Stripe URL:', url.toString());
-      
-      setLoadingCheckout(true);
-      
-      // Redirect to Stripe
-      setTimeout(() => {
-        window.location.href = url.toString();
-      }, 300);
+      if (!res.ok) {
+        const text = await res.text();
+        console.error('❌ Checkout failed:', res.status, text);
+        alert(text || 'Failed to start checkout. Please try again.');
+        return;
+      }
+
+      const { url } = await res.json();
+      if (!url) {
+        alert('Failed to start checkout. No redirect URL received.');
+        return;
+      }
+      window.location.href = url;
     } catch (error) {
-      console.error('❌ Error building Stripe URL:', error);
+      console.error('❌ Checkout error:', error);
       alert('Failed to start checkout. Please try again.');
+    } finally {
       setLoadingCheckout(false);
     }
   };
@@ -389,7 +383,7 @@ export default function LandingPage() {
 
                     <div className="space-y-3 mb-8">
                       {[
-                        "3 course creations per hour",
+                        "5 course creations per week",
                         "3 total whiteboards (lifetime)",
                         "AI Study Assistant access",
                         "Standard profile styling",

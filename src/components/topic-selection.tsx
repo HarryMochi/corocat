@@ -9,7 +9,8 @@ import {
   Zap,
   Users,
   Loader2,
-  ArrowLeft
+  ArrowLeft,
+  User2 as User
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,7 @@ import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { Textarea } from "./ui/textarea";
 import { cn } from "@/lib/utils";
 import { Label } from "./ui/label";
-import { User } from "@/lib/types";
+
 import {
   Popover,
   PopoverContent,
@@ -134,9 +135,10 @@ export default function TopicSelection({ soloCoursesCount = 0, collaborativeCour
               }}
               className="grid grid-cols-2 gap-4"
             >
-              <Label className={cn("border p-4 rounded-md cursor-pointer",
+              <Label className={cn("border p-4 rounded-md cursor-pointer flex items-center justify-center gap-2",
                 courseMode === "Solo" && "border-primary ring-2 ring-primary")}>
                 <RadioGroupItem value="Solo" className="sr-only" />
+                <User className="h-4 w-4"/>
                 Solo
               </Label>
 
@@ -305,7 +307,7 @@ export default function TopicSelection({ soloCoursesCount = 0, collaborativeCour
             <Button
               variant="ghost"
               size="sm"
-              className="absolute left-4 top-4"
+              className="absolute left-80 top-4"
               onClick={handleBack}
             >
               <ArrowLeft className="h-4 w-4 mr-1" /> Back

@@ -8,7 +8,7 @@
  * - AskStepQuestionOutput - The return type for the askStepQuestion function.
  */
 
-import { ai, llama3Model } from '@/ai/genkit';
+import { ai, llama3Model } from '../genkit';
 import { z } from 'genkit';
 
 const AskStepQuestionInputSchema = z.object({
