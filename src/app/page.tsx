@@ -38,8 +38,7 @@ export default function LandingPage() {
 
   // 🔥 FIX: Upgrade button handler
   const onUpgrade = () => {
-    console.log('🎯 Upgrade clicked');
-    console.log('👤 User:', user?.email || 'Not logged in');
+
     
     if (!user) {
       console.log('🔐 No user - redirecting to SIGNUP');
@@ -49,7 +48,7 @@ export default function LandingPage() {
       return;
     }
 
-    console.log('✅ User authenticated - redirecting to Stripe');
+
     redirectToStripe();
   };
 
@@ -79,7 +78,7 @@ export default function LandingPage() {
       }
       window.location.href = url;
     } catch (error) {
-      console.error('❌ Checkout error:', error);
+
       alert('Failed to start checkout. Please try again.');
     } finally {
       setLoadingCheckout(false);
@@ -88,9 +87,7 @@ export default function LandingPage() {
 
   // 🔥 FIX: Handle post-signup redirect to Stripe
   useEffect(() => {
-    console.log('🔍 Checking for pending upgrade...');
-    console.log('User:', user?.email || 'No user');
-    console.log('Pending upgrade:', sessionStorage.getItem('pendingUpgrade'));
+ 
 
     if (!user) {
       console.log('⏸️ No user yet');
@@ -100,13 +97,13 @@ export default function LandingPage() {
     const hasPendingUpgrade = sessionStorage.getItem('pendingUpgrade') === 'true';
     
     if (hasPendingUpgrade) {
-      console.log('🎉 User logged in with pending upgrade!');
+      
       
       // Clear flags
       sessionStorage.removeItem('pendingUpgrade');
       sessionStorage.removeItem('selectedPlan');
       
-      console.log('🚀 Redirecting to Stripe...');
+  
       
       // Redirect after short delay
       setTimeout(() => {
@@ -402,7 +399,7 @@ export default function LandingPage() {
                 </Card>
 
                 {/* Premium Plan */}
-                <Card className="border-2 border-primary/30 bg-white shadow-[0_30px_60px_-15px_rgba(var(--primary),0.1)] transition-all duration-300 hover:shadow-[0_40px_80px_-15px_rgba(var(--primary),0.2)] hover:-translate-y-2">
+                <Card className="relative overflow-hidden border-2 border-primary/30 bg-white shadow-[0_30px_60px_-15px_rgba(var(--primary),0.1)] transition-all duration-300 hover:shadow-[0_40px_80px_-15px_rgba(var(--primary),0.2)] hover:-translate-y-2">
                   <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-primary via-accent to-primary animate-gradient-x" />
 
                   <div className="absolute top-6 right-6">
