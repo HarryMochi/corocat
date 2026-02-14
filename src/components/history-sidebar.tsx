@@ -173,7 +173,7 @@ export default function HistorySidebar({
                       {currentPlan}{' '}
                       <span className="text-[10px] ml-1">Upgrade</span>
                     </Link>
-                    <span className="text-[10px] text-muted-foreground">5 courses/week, 3 whiteboards lifetime</span>
+                    <span className="text-[10px] text-muted-foreground">3 courses/hour, 3 whiteboards lifetime</span>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-1.5">

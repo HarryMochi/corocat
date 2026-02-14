@@ -380,7 +380,7 @@ export default function LandingPage() {
 
                     <div className="space-y-3 mb-8">
                       {[
-                        "5 course creations per week",
+                        "3 course creations per hour",
                         "3 total whiteboards (lifetime)",
                         "AI Study Assistant access",
                         "Standard profile styling",
